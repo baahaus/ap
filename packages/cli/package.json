@@ -1,0 +1,35 @@
+{
+  "name": "@ap/cli",
+  "version": "0.1.0",
+  "description": "AP CLI binary -- team coding agent",
+  "type": "module",
+  "bin": {
+    "ap": "dist/bin.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@ap/ai": "workspace:*",
+    "@ap/core": "workspace:*",
+    "@ap/tui": "workspace:*",
+    "@sinclair/typebox": "^0.34.0",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
