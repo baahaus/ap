@@ -16,7 +16,7 @@ import {
   getTheme,
   listThemes,
 } from '@ap/tui';
-import { btw, compact, showContext, showDiff, handleTeamCommand, showSkills } from './commands/index.js';
+import { btw, compact, copy, showContext, showDiff, showSuggestions, handleTeamCommand, showSkills } from './commands/index.js';
 
 const VERSION = '0.1.0';
 
@@ -66,6 +66,20 @@ function parseArgs(args: string[]): CliOptions {
     } else if (arg === 'sessions') {
       listSessionsCommand().then(() => process.exit(0));
       return opts;
+    } else if (arg === 'init') {
+      import('./commands/init.js').then((m) => m.init()).then(() => process.exit(0));
+      return opts;
+    } else if (arg === 'install') {
+      const source = args[++i] || '';
+      import('./commands/packages.js').then((m) => m.installPackage(source)).then(() => process.exit(0));
+      return opts;
+    } else if (arg === 'list' || arg === 'packages') {
+      import('./commands/packages.js').then((m) => m.listPackages()).then(() => process.exit(0));
+      return opts;
+    } else if (arg === 'remove' || arg === 'uninstall') {
+      const pkg = args[++i] || '';
+      import('./commands/packages.js').then((m) => m.removePackage(pkg)).then(() => process.exit(0));
+      return opts;
     } else if (!arg.startsWith('-')) {
       opts.print = arg;
     }
@@ -102,7 +116,13 @@ ${chalk.bold('Usage:')}
   ap -m <model>             Set model (anthropic/openai/ollama/url)
   ap -t, --theme <name>     Set color theme
   ap --color <hex>          Set prompt color
+
+${chalk.bold('Subcommands:')}
+  ap init                   First-time setup (create ~/.ap, config)
   ap sessions               List sessions for current directory
+  ap install <source>       Install package (npm:pkg, user/repo, git:url)
+  ap list                   List installed packages
+  ap remove <name>          Remove a package
 
 ${chalk.bold('Commands:')}
   /btw <question>           Ephemeral question (no history)
@@ -116,11 +136,13 @@ ${chalk.bold('Commands:')}
   /theme [name]             Set or show color theme
   /save                     Save session now
   /sessions                 List sessions
+  /copy [N]                 Copy Nth response to clipboard
   /help                     Show this help
   /exit                     Exit
 
 ${chalk.bold('Keys:')}
   Enter                     Send message
+  !command                  Run shell command directly
   Ctrl+C                    Exit
   `);
 }
@@ -154,17 +176,33 @@ export async function run(): Promise<void> {
     console.log(chalk.dim(`Loaded ${skillCount} skill(s)`));
   }
 
+  // Handle session resume -- load before creating agent
+  let existingSession = undefined;
+  if (opts.resume || opts.sessionId) {
+    const sessions = await listSessions(cwd);
+    const targetId = opts.sessionId || sessions[sessions.length - 1];
+    if (targetId) {
+      const loaded = await loadSession(cwd, targetId);
+      if (loaded) {
+        existingSession = loaded;
+        console.log(chalk.dim(`Resumed session: ${targetId} (${loaded.entries.length} messages)`));
+      } else {
+        console.log(chalk.dim(`Session not found: ${targetId}, starting new`));
+      }
+    }
+  }
+
   const agent = await createAgent({
     provider,
     model: currentModel,
     cwd,
+    session: existingSession,
     onStream: (event: StreamEvent) => {
       switch (event.type) {
         case 'text':
           renderText(event.text || '');
           break;
         case 'thinking':
-          // Dim thinking output
           renderText(chalk.dim(event.text || ''));
           break;
         case 'error':
@@ -180,23 +218,6 @@ export async function run(): Promise<void> {
       renderToolEnd(name, result);
     },
   });
-
-  // Handle session resume
-  if (opts.resume || opts.sessionId) {
-    const sessions = await listSessions(cwd);
-    const targetId = opts.sessionId || sessions[sessions.length - 1];
-    if (targetId) {
-      const loaded = await loadSession(cwd, targetId);
-      if (loaded) {
-        agent.session.id = loaded.id;
-        agent.session.entries = loaded.entries;
-        agent.session.currentBranch = loaded.currentBranch;
-        console.log(chalk.dim(`Resumed session: ${targetId} (${loaded.entries.length} messages)`));
-      } else {
-        console.log(chalk.dim(`Session not found: ${targetId}, starting new`));
-      }
-    }
-  }
 
   // Print mode: single question, single response, exit
   if (opts.print) {
@@ -255,6 +276,10 @@ export async function run(): Promise<void> {
 
       case 'branch':
         renderLine(chalk.dim(`Conversation branched at: ${agent.session.currentBranch}`));
+        return true;
+
+      case 'copy':
+        copy(args, agent.getMessages());
         return true;
 
       case 'diff':
@@ -375,6 +400,30 @@ export async function run(): Promise<void> {
 
       if (!trimmed) continue;
 
+      // ! prefix: run bash command directly, add output to context
+      if (trimmed.startsWith('!')) {
+        const cmd = trimmed.slice(1).trim();
+        if (cmd) {
+          try {
+            const { execSync } = await import('node:child_process');
+            const output = execSync(cmd, { cwd, encoding: 'utf-8', timeout: 30000 });
+            if (output.trim()) {
+              renderLine(chalk.dim(output.trimEnd()));
+            }
+            // Add to conversation so the agent can see it
+            const { addEntry } = await import('@ap/core');
+            addEntry(agent.session, {
+              role: 'user',
+              content: `[Shell command: ${cmd}]\n${output}`,
+            });
+          } catch (err) {
+            const e = err as { stderr?: string; message?: string };
+            renderError(e.stderr || e.message || 'Command failed');
+          }
+        }
+        continue;
+      }
+
       if (isCommand(trimmed)) {
         const { name, args } = parseCommand(trimmed);
         await handleCommand(name, args);
@@ -384,6 +433,9 @@ export async function run(): Promise<void> {
       // Send to agent
       await agent.send(trimmed);
       renderText('\n');
+
+      // Show prompt suggestions (non-blocking, uses sidecar)
+      showSuggestions(agent.getMessages(), provider, currentModel).catch(() => {});
 
       // Auto-save after each exchange
       await saveSession(agent.session);

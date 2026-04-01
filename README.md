@@ -13,44 +13,63 @@ pnpm install
 pnpm build
 ```
 
-Link the binary:
+Run directly:
+
+```bash
+./packages/cli/dist/bin.js
+```
+
+Or link globally:
 
 ```bash
 pnpm link --global packages/cli
-```
-
-Or run directly:
-
-```bash
-node packages/cli/dist/bin.js
+ap
 ```
 
 ## Setup
 
-Set your API key via any of:
+Run interactive setup:
+
+```bash
+ap init
+```
+
+Or set your API key manually:
 
 ```bash
 # Environment variable
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# Config file
-mkdir -p ~/.ap
-echo '{"anthropic_api_key": "sk-ant-..."}' > ~/.ap/config.json
+# Config file (~/.ap/config.json)
+{ "anthropic_api_key": "sk-ant-..." }
 
 # .env file in project root
-echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ## Usage
 
 ```bash
 ap                                    # Interactive mode
-ap -p "question"                      # Print mode (single response, exit)
-ap -m claude-opus-4-20250514          # Use a specific model
-ap -m ollama:llama3.1                 # Use Ollama
+ap -p "question"                      # Print mode (single response)
+ap -p "question" --json               # JSON output
+ap --rpc                              # RPC mode (JSONL stdin/stdout)
+ap -m claude-opus-4-20250514          # Specific model
+ap -m ollama:llama3.1                 # Ollama
 ap -m http://localhost:8000/v1:qwen   # Custom endpoint
 ap -r                                 # Resume last session
+ap -t ocean                           # Color theme
+```
+
+### Subcommands
+
+```bash
+ap init                               # First-time setup
 ap sessions                           # List sessions
+ap install user/repo                  # Install package from GitHub
+ap install npm:package-name           # Install from npm
+ap list                               # List installed packages
+ap remove <name>                      # Remove package
 ```
 
 ### Model Formats
@@ -68,12 +87,14 @@ http://host:port/v1:model-name        # Any OpenAI-compatible endpoint
 
 | Command | Description |
 |---------|-------------|
-| `/btw <question>` | Ephemeral question -- full context, no tools, no history pollution |
+| `/btw <question>` | Ephemeral question -- full context, no tools, no history |
 | `/compact [focus]` | Compress conversation with optional focus |
 | `/branch` | Fork conversation at current point |
 | `/context` | Visualize context window usage |
 | `/diff` | Show uncommitted git changes with color |
+| `/copy [N]` | Copy Nth response to clipboard |
 | `/model <name>` | Switch model mid-session |
+| `/theme [name]` | Set or show color theme |
 | `/team spawn <name>` | Create a peer agent with its own worktree |
 | `/team msg <name> <msg>` | Send message to an agent |
 | `/team status` | Show all agents and tasks |
@@ -83,41 +104,98 @@ http://host:port/v1:model-name        # Any OpenAI-compatible endpoint
 | `/save` | Save session |
 | `/help` | Show all commands |
 
+### Shell Passthrough
+
+Type `!` before any command to run it directly without the agent:
+
+```
+> !git status
+> !npm test
+```
+
+Output is added to the conversation context so the agent can see it.
+
 ## Architecture
 
 5-package TypeScript monorepo:
 
 ```
-@ap/ai     Multi-provider LLM (Anthropic, OpenAI, any OpenAI-compatible)
+@ap/ai     Multi-provider LLM + sidecar + compression
   |
-@ap/core   Agent loop + 4 tools (read, write, edit, bash)
+@ap/core   Agent loop + 4 tools + extensions + skills + checkpoints
   |
-@ap/tui    Terminal UI (streaming, overlays, syntax highlighting)
+@ap/tui    Terminal UI + overlays + themes
   |
-@ap/cli    The `ap` binary (REPL, commands, sessions)
+@ap/cli    Binary + REPL + commands + RPC + SDK
   |
-@ap/team   Peer agents, git worktree isolation, mailbox, task queue
+@ap/team   Peer agents + worktrees + mailbox + task queue
 ```
 
-### Why 4 tools?
+### 4 Core Tools
 
-Pi.dev proved it: frontier models don't need 30 built-in tools. Four primitives (read, write, edit, bash) cover everything. The rest is extensions.
+Pi.dev proved it: frontier models don't need 30 built-in tools.
 
-### Why team-native?
+| Tool | Purpose |
+|------|---------|
+| `read` | Read files with line numbers |
+| `write` | Create/overwrite files |
+| `edit` | Exact string replacement |
+| `bash` | Shell execution with optional safety checks |
+
+### Team-Native
 
 Most agent frameworks bolt on multi-agent as an afterthought. AP builds it into the core:
 
 - **Peer agents** -- equals, not parent-child
-- **Git worktree isolation** -- each agent gets a full repo copy on a temporary branch
-- **File-based mailboxes** -- structured message passing between agents
-- **Shared task queue** -- any agent can create, claim, or complete tasks
+- **Git worktree isolation** -- each agent gets a full repo copy
+- **File-based mailboxes** -- structured message passing
+- **Shared task queue** -- create, claim, complete with dependencies
 - **Consensus patterns** -- synthesis, vote, review, pipeline
 
-### What we stole
+### Sidecar
 
-From **pi.dev**: 4-tool core, layered packages, JSONL sessions, sub-1000-token system prompt.
+A cheap, fast model (Haiku or gpt-4o-mini) handles:
+- Bash command safety classification
+- Conversation summarization for /compact
+- Session title generation
+- Prompt suggestions after responses
 
-From **Claude Code**: /btw (ephemeral questions), /compact, /branch, /context, prompt cache preservation, agent teams with worktree isolation.
+### Compression
+
+Optional [Wren](https://github.com/Divagation/wren) integration compresses tool output before it enters the context window. Auto-detected when `~/wren/bin/wren` exists.
+
+### Themes
+
+7 built-in color themes: `default`, `mono`, `ocean`, `forest`, `sunset`, `rose`, `hacker`
+
+```bash
+ap -t hacker        # Set on start
+/theme ocean        # Switch mid-session
+```
+
+## Operating Modes
+
+| Mode | Flag | Use case |
+|------|------|----------|
+| Interactive | (default) | Full TUI REPL |
+| Print | `-p "question"` | Single response, exit |
+| JSON | `-p "q" --json` | Structured output for scripts |
+| RPC | `--rpc` | JSONL stdin/stdout for editors/bots |
+| SDK | `import from '@ap/cli/sdk'` | Programmatic embedding |
+
+### SDK Usage
+
+```typescript
+import { createApSession } from '@ap/cli/sdk';
+
+const session = await createApSession({
+  model: 'claude-sonnet-4-20250514',
+  cwd: '/path/to/project',
+});
+
+const response = await session.send('Read the package.json');
+console.log(response.text);
+```
 
 ## Context Files
 
@@ -130,12 +208,7 @@ AP reads instruction files hierarchically:
 
 ## Skills
 
-Skills are markdown files with frontmatter that inject context on-demand. Zero cost until activated.
-
-```bash
-~/.ap/skills/security-review.md    # Global skills
-.ap/skills/deploy.md               # Project skills
-```
+Markdown files with frontmatter. Zero context cost until activated.
 
 ```markdown
 ---
@@ -148,30 +221,43 @@ tools: [read, bash]
 Analyze pending changes on the current branch...
 ```
 
-Type `/security-review` in the REPL to activate. Use `/skills` to see all installed skills.
+**Built-in skills:** `/security-review`, `/commit`, `/simplify`
 
-**Built-in skills:** `/security-review`, `/commit`
+Install to `~/.ap/skills/` (global) or `.ap/skills/` (project).
 
 ## Extensions
 
-Extensions are TypeScript modules loaded from `~/.ap/extensions/` or `.ap/extensions/`:
+TypeScript modules with full system access:
 
 ```typescript
 export default function activate(ap) {
-  // Register custom tools
   ap.tools.register({ name: 'my-tool', ... });
-
-  // Register commands
   ap.commands.register('/my-cmd', async (args) => { ... });
-
-  // Hook into events
   ap.events.on('tool:before', async (data) => { ... });
   ap.events.on('tool:after', async (data) => { ... });
-
-  // Inject context into system prompt
   ap.context.append('Always consider accessibility...');
 }
 ```
+
+Install to `~/.ap/extensions/` (global) or `.ap/extensions/` (project).
+
+## Packages
+
+Install community extensions and skills:
+
+```bash
+ap install user/repo              # From GitHub
+ap install npm:ap-extension-foo   # From npm
+ap install git:https://...        # From any git URL
+ap list                           # Show installed
+ap remove <name>                  # Uninstall
+```
+
+## What We Stole
+
+From **pi.dev**: 4-tool core, layered packages, JSONL sessions, sub-1000-token system prompt, extension system.
+
+From **Claude Code**: /btw, /compact, /branch, /context, /diff, /copy, agent teams with worktree isolation, prompt cache preservation, haiku sidecar, `!` shell passthrough.
 
 ## License
 

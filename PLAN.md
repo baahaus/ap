@@ -338,15 +338,20 @@ Analyze pending changes for security vulnerabilities...
 - [x] Wren compression integration (CLI + HTTP modes, auto-detect, tool output compression)
 - [x] /diff command (colorized git diff)
 - [x] Built-in skills: /security-review, /commit, /simplify
+- [x] Package registry (ap install, ap list, ap remove -- npm, git, GitHub)
 
 ### Phase 5 -- Polish
 - [x] Haiku sidecar (bash safety classification, conversation summarization, session titles)
 - [x] Checkpoint/rewind system (conversation + git state)
-- [ ] Prompt suggestions
+- [x] Prompt suggestions after responses (via sidecar)
 - [x] 7 color themes (default, mono, ocean, forest, sunset, rose, hacker)
 - [x] RPC mode (JSONL over stdin/stdout for embedding)
 - [x] SDK mode (createApSession() export for programmatic use)
 - [x] JSON output mode (--json flag for print mode)
+- [x] `ap init` -- interactive first-time setup
+- [x] `!` prefix bash passthrough (output added to context)
+- [x] `/copy [N]` -- clipboard copy with code block detection
+- [x] Session resume via config.session (proper load path, not mutation)
 
 ---
 
@@ -462,18 +467,28 @@ Analyze pending changes for security vulnerabilities...
 - Skill activation (sends prompt to agent)
 - Sidecar bash safety checks
 
-9. `(current)` -- Wren compression integration
+9. `82a6297` -- Wren compression integration
    - Auto-detects ~/wren/bin/wren CLI or HTTP endpoint
    - Compresses tool output before adding to context window
    - Two modes: input (prompts) and output (tool results)
    - Silently skips when unavailable
 
+10. `(current)` -- Complete feature set
+    - `ap init`: interactive first-time setup (dirs, config, AGENTS.md)
+    - `!command` bash passthrough (output added to conversation context)
+    - `/copy [N]`: clipboard copy with code block detection (pbcopy/xclip)
+    - Package registry: `ap install`, `ap list`, `ap remove` (npm, git, GitHub)
+    - Prompt suggestions after responses via sidecar
+    - Session resume uses proper config.session path (no mutation)
+    - Updated help with all subcommands and key bindings
+    - Comprehensive README with all features documented
+
 **Remaining work:**
-- Package registry (`ap install <package>`)
-- Prompt suggestions
 - End-to-end testing with real API key
+- npm publish pipeline
+- CI/CD (GitHub Actions)
 
 ---
 
 *Last updated: 2026-04-01*
-*Status: Phases 1-5 complete. All core features implemented. Remaining: package registry, prompt suggestions, e2e testing.*
+*Status: All 5 phases complete. Feature-complete CLI agent. Remaining: e2e testing, npm publish, CI/CD.*

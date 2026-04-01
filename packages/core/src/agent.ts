@@ -25,6 +25,7 @@ export interface AgentConfig {
   cwd: string;
   tools?: CoreTool[];
   extensions?: ExtensionManager;
+  session?: Session; // Pass existing session for resume
   onStream?: (event: StreamEvent) => void;
   onToolStart?: (name: string, input: Record<string, unknown>) => void;
   onToolEnd?: (name: string, result: string) => void;
@@ -42,7 +43,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
   const { provider, model, cwd, onStream, onToolStart, onToolEnd } = config;
   const tools = config.tools || coreTools;
   const usage = new UsageTracker();
-  const session = await createSession(cwd);
+  const session = config.session || await createSession(cwd);
 
   // Load extensions
   const extensions = config.extensions || new ExtensionManager();
