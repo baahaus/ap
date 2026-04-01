@@ -6,11 +6,15 @@ export {
   renderToolEnd,
   renderError,
   renderStatus,
-  renderOverlay,
   renderPrompt,
   clearLine,
   moveCursorUp,
 } from './renderer.js';
+
+export {
+  showOverlayAndWait,
+  renderOverlay,
+} from './overlay.js';
 
 export {
   createInput,

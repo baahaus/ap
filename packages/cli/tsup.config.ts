@@ -9,7 +9,8 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ['@ap/ai', '@ap/core', '@ap/tui', 'chalk'],
+  // Bundle workspace packages into the CLI binary so it runs standalone
+  noExternal: ['@ap/ai', '@ap/core', '@ap/tui', '@sinclair/typebox'],
   banner: {
     js: '#!/usr/bin/env node',
   },

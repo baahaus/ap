@@ -1,12 +1,13 @@
 import type { Provider, Message } from '@ap/ai';
-import { renderOverlay } from '@ap/tui';
+import { showOverlayAndWait } from '@ap/tui';
 
 /**
  * /btw -- Ephemeral question.
  *
  * Full conversation context, zero tools, zero history pollution.
  * The inverse of a subagent: sees everything, can do nothing.
- * Response rendered in overlay, never added to session.
+ * Response rendered in overlay, dismissed with any keypress.
+ * Never added to session.
  */
 export async function btw(
   question: string,
@@ -32,5 +33,5 @@ export async function btw(
         .map((b) => (b.type === 'text' ? b.text : ''))
         .join('');
 
-  renderOverlay(text);
+  await showOverlayAndWait(text);
 }

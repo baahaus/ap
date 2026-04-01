@@ -8,6 +8,7 @@ import type {
   ContentBlock,
   TokenUsage,
 } from '../types.js';
+import { getApiKey } from '../config.js';
 
 function toOpenAIMessages(messages: Message[], system?: string): unknown[] {
   const result: unknown[] = [];
@@ -76,11 +77,16 @@ function toOpenAITools(request: CompletionRequest): unknown[] | undefined {
 }
 
 export function createOpenAIProvider(config: ProviderConfig): Provider {
-  const apiKey = config.apiKey || process.env.OPENAI_API_KEY;
+  const apiKey = config.apiKey || getApiKey('openai');
   const baseUrl = config.baseUrl || 'https://api.openai.com/v1';
 
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY required');
+    throw new Error(
+      'OpenAI API key required. Set it via:\n' +
+      '  1. OPENAI_API_KEY environment variable\n' +
+      '  2. ~/.ap/config.json: { "openai_api_key": "sk-..." }\n' +
+      '  3. .env file in current directory'
+    );
   }
 
   const key: string = apiKey;

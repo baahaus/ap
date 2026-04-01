@@ -61,16 +61,6 @@ export function renderStatus(parts: Record<string, string>): void {
   process.stderr.write(`\r\x1b[K${line}`);
 }
 
-// Overlay for /btw responses
-export function renderOverlay(content: string): void {
-  const width = process.stdout.columns || 80;
-  const border = chalk.dim('─'.repeat(width));
-  process.stderr.write('\n' + border + '\n');
-  process.stderr.write(chalk.yellow(content) + '\n');
-  process.stderr.write(border + '\n');
-  process.stderr.write(chalk.dim('(press any key to dismiss)') + '\n');
-}
-
 export function renderPrompt(color?: string): void {
   const promptChar = '>';
   const colorFn = color ? chalk.hex(color) : chalk.blue;

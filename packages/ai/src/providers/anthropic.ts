@@ -8,6 +8,7 @@ import type {
   ContentBlock,
   TokenUsage,
 } from '../types.js';
+import { getApiKey } from '../config.js';
 
 function toAnthropicMessages(messages: Message[]): unknown[] {
   return messages.map((msg) => {
@@ -40,11 +41,16 @@ function toAnthropicMessages(messages: Message[]): unknown[] {
 }
 
 export function createAnthropicProvider(config: ProviderConfig): Provider {
-  const apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY;
+  const apiKey = config.apiKey || getApiKey('anthropic');
   const baseUrl = config.baseUrl || 'https://api.anthropic.com';
 
   if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY required');
+    throw new Error(
+      'Anthropic API key required. Set it via:\n' +
+      '  1. ANTHROPIC_API_KEY environment variable\n' +
+      '  2. ~/.ap/config.json: { "anthropic_api_key": "sk-..." }\n' +
+      '  3. .env file in current directory'
+    );
   }
 
   // Assert non-undefined after guard

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { resolveProvider, type StreamEvent } from '@ap/ai';
-import { createAgent, branchAt } from '@ap/core';
+import { createAgent, saveSession, loadSession, listSessions, branchAt } from '@ap/core';
 import {
   createInput,
   isCommand,
@@ -20,7 +20,10 @@ const VERSION = '0.1.0';
 interface CliOptions {
   model: string;
   color?: string;
-  print?: string; // Non-interactive: print mode
+  print?: string;
+  resume?: boolean;
+  sessionId?: string;
+  newSession?: boolean;
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -36,14 +39,22 @@ function parseArgs(args: string[]): CliOptions {
       opts.color = args[++i];
     } else if (arg === '--print' || arg === '-p') {
       opts.print = args[++i];
+    } else if (arg === '--resume' || arg === '-r') {
+      opts.resume = true;
+    } else if (arg === '--session' || arg === '-s') {
+      opts.sessionId = args[++i];
+    } else if (arg === '--new' || arg === '-n') {
+      opts.newSession = true;
     } else if (arg === '--version' || arg === '-v') {
       console.log(`ap ${VERSION}`);
       process.exit(0);
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
+    } else if (arg === 'sessions') {
+      listSessionsCommand().then(() => process.exit(0));
+      return opts;
     } else if (!arg.startsWith('-')) {
-      // Treat as print mode input
       opts.print = arg;
     }
   }
@@ -51,15 +62,32 @@ function parseArgs(args: string[]): CliOptions {
   return opts;
 }
 
+async function listSessionsCommand(): Promise<void> {
+  const cwd = process.cwd();
+  const sessions = await listSessions(cwd);
+  if (sessions.length === 0) {
+    console.log(chalk.dim('No sessions found for this directory.'));
+    return;
+  }
+  console.log(chalk.bold('Sessions:'));
+  for (const id of sessions) {
+    console.log(`  ${id}`);
+  }
+}
+
 function printHelp(): void {
   console.log(`
 ${chalk.bold('ap')} -- Team CLI Agent from ap.haus
 
 ${chalk.bold('Usage:')}
-  ap                        Interactive mode
+  ap                        Interactive mode (new session)
   ap -p "question"          Print mode (single response)
+  ap -r, --resume           Resume last session
+  ap -s, --session <id>     Resume specific session
+  ap -n, --new              Force new session
   ap -m <model>             Set model
   ap --color <hex>          Set prompt color
+  ap sessions               List sessions for current directory
 
 ${chalk.bold('Commands:')}
   /btw <question>           Ephemeral question (no history)
@@ -67,9 +95,11 @@ ${chalk.bold('Commands:')}
   /branch                   Fork conversation at current point
   /context                  Show context window usage
   /model <name>             Switch model
-  /effort <level>           Set effort (low/medium/high/max)
   /team <subcommand>        Team management
+  /save                     Save session now
+  /sessions                 List sessions
   /help                     Show this help
+  /exit                     Exit
 
 ${chalk.bold('Keys:')}
   Enter                     Send message
@@ -94,7 +124,8 @@ export async function run(): Promise<void> {
           renderText(event.text || '');
           break;
         case 'thinking':
-          // Suppress thinking in output for now
+          // Dim thinking output
+          renderText(chalk.dim(event.text || ''));
           break;
         case 'error':
           renderError(event.error || 'Unknown error');
@@ -110,23 +141,44 @@ export async function run(): Promise<void> {
     },
   });
 
+  // Handle session resume
+  if (opts.resume || opts.sessionId) {
+    const sessions = await listSessions(cwd);
+    const targetId = opts.sessionId || sessions[sessions.length - 1];
+    if (targetId) {
+      const loaded = await loadSession(cwd, targetId);
+      if (loaded) {
+        agent.session.id = loaded.id;
+        agent.session.entries = loaded.entries;
+        agent.session.currentBranch = loaded.currentBranch;
+        console.log(chalk.dim(`Resumed session: ${targetId} (${loaded.entries.length} messages)`));
+      } else {
+        console.log(chalk.dim(`Session not found: ${targetId}, starting new`));
+      }
+    }
+  }
+
   // Print mode: single question, single response, exit
   if (opts.print) {
-    const response = await agent.send(opts.print);
-    const text = typeof response.content === 'string'
-      ? response.content
-      : response.content
-          .filter((b) => b.type === 'text')
-          .map((b) => (b.type === 'text' ? b.text : ''))
-          .join('');
-    renderLine('');
+    await agent.send(opts.print);
+    renderText('\n');
     process.exit(0);
   }
 
   // Interactive mode
   console.log(chalk.dim(`ap ${VERSION} | ${currentModel} | /help for commands`));
+  console.log(chalk.dim(`session: ${agent.session.id}`));
 
   const input = createInput();
+
+  // Graceful shutdown
+  process.on('SIGINT', async () => {
+    renderText('\n');
+    await saveSession(agent.session);
+    console.log(chalk.dim(`Session saved: ${agent.session.id}`));
+    input.close();
+    process.exit(0);
+  });
 
   const handleCommand = async (name: string, args: string): Promise<boolean> => {
     switch (name) {
@@ -147,8 +199,7 @@ export async function run(): Promise<void> {
         return true;
 
       case 'branch':
-        // Branch at the current point (effectively a no-op until we add selection)
-        renderLine(chalk.dim('Conversation branched at current point.'));
+        renderLine(chalk.dim(`Conversation branched at: ${agent.session.currentBranch}`));
         return true;
 
       case 'model':
@@ -165,12 +216,32 @@ export async function run(): Promise<void> {
         }
         return true;
 
+      case 'save':
+        await saveSession(agent.session);
+        renderLine(chalk.dim(`Session saved: ${agent.session.id}`));
+        return true;
+
+      case 'sessions': {
+        const sessions = await listSessions(cwd);
+        if (sessions.length === 0) {
+          renderLine(chalk.dim('No sessions.'));
+        } else {
+          for (const id of sessions) {
+            const marker = id === agent.session.id ? chalk.green(' (current)') : '';
+            renderLine(`  ${id}${marker}`);
+          }
+        }
+        return true;
+      }
+
       case 'help':
         printHelp();
         return true;
 
       case 'exit':
       case 'quit':
+        await saveSession(agent.session);
+        console.log(chalk.dim(`Session saved: ${agent.session.id}`));
         input.close();
         process.exit(0);
 
@@ -199,6 +270,9 @@ export async function run(): Promise<void> {
       // Send to agent
       await agent.send(trimmed);
       renderText('\n');
+
+      // Auto-save after each exchange
+      await saveSession(agent.session);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ERR_USE_AFTER_CLOSE') break;
       renderError((err as Error).message);
