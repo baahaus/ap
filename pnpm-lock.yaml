@@ -42,6 +42,9 @@ importers:
       '@ap/core':
         specifier: workspace:*
         version: link:../core
+      '@ap/team':
+        specifier: workspace:*
+        version: link:../team
       '@ap/tui':
         specifier: workspace:*
         version: link:../tui

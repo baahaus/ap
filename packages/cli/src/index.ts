@@ -13,7 +13,7 @@ import {
   renderError,
   renderPrompt,
 } from '@ap/tui';
-import { btw, compact, showContext } from './commands/index.js';
+import { btw, compact, showContext, handleTeamCommand } from './commands/index.js';
 
 const VERSION = '0.1.0';
 
@@ -233,6 +233,10 @@ export async function run(): Promise<void> {
         }
         return true;
       }
+
+      case 'team':
+        await handleTeamCommand(args, cwd, provider, currentModel);
+        return true;
 
       case 'help':
         printHelp();

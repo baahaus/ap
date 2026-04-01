@@ -10,7 +10,7 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   // Bundle workspace packages into the CLI binary so it runs standalone
-  noExternal: ['@ap/ai', '@ap/core', '@ap/tui', '@sinclair/typebox'],
+  noExternal: ['@ap/ai', '@ap/core', '@ap/tui', '@ap/team', '@sinclair/typebox'],
   banner: {
     js: '#!/usr/bin/env node',
   },
