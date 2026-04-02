@@ -11,6 +11,29 @@ import type {
 import { getApiKey } from '../config.js';
 import { getAnthropicAuthHeaders } from '../auth.js';
 
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  maxRetries = 3,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, init);
+
+    if (response.status === 429 && attempt < maxRetries) {
+      const retryAfter = response.headers.get('retry-after');
+      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : (attempt + 1) * 2000;
+      process.stderr.write(`Rate limited, retrying in ${Math.round(waitMs / 1000)}s...\n`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+
+    return response;
+  }
+
+  // Shouldn't reach here, but TypeScript wants it
+  return fetch(url, init);
+}
+
 function toAnthropicMessages(messages: Message[]): unknown[] {
   return messages.map((msg) => {
     if (typeof msg.content === 'string') {
@@ -62,7 +85,7 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
 
-    const response = await fetch(`${baseUrl}/v1/messages${urlSuffix}`, {
+    const response = await fetchWithRetry(`${baseUrl}/v1/messages${urlSuffix}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -154,7 +177,7 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
 
-    const response = await fetch(`${baseUrl}/v1/messages${urlSuffix}`, {
+    const response = await fetchWithRetry(`${baseUrl}/v1/messages${urlSuffix}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -210,9 +233,10 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     stream,
     complete,
     models: () => [
-      'claude-opus-4-20250514',
+      'claude-opus-4-6-20250610',
+      'claude-sonnet-4-6-20250610',
       'claude-sonnet-4-20250514',
-      'claude-haiku-4-20250414',
+      'claude-haiku-4-5-20251001',
     ],
   };
 }
