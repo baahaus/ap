@@ -5,10 +5,13 @@ import {
   spawnPeer,
   messagePeer,
   synthesize,
+  reviewPeer,
+  runPipeline,
   mergePeer,
   getTeamStatus,
   listTasks,
   type TeamSession,
+  type PipelineStage,
 } from '@blush/team';
 import { renderLine, renderError } from '@blush/tui';
 
@@ -163,17 +166,86 @@ export async function handleTeamCommand(
       break;
     }
 
+    case 'review': {
+      const reviewParts = rest.trim().split(/\s+/);
+      const target = reviewParts[0];
+      const reviewer = reviewParts[1];
+
+      if (!target || !reviewer) {
+        renderError('Usage: /team review <target-agent> <reviewer-agent> [--criteria "..."]');
+        return;
+      }
+
+      if (!activeTeam) {
+        renderError('No active team session.');
+        return;
+      }
+
+      const criteriaIdx = rest.indexOf('--criteria');
+      const criteria = criteriaIdx !== -1 ? rest.slice(criteriaIdx + 11).trim().replace(/^["']|["']$/g, '') : undefined;
+
+      renderLine(chalk.dim(`${reviewer} reviewing ${target}'s output...`));
+      try {
+        const result = await reviewPeer(activeTeam, reviewer, target, provider, model, criteria);
+        if (result.approved) {
+          renderLine(chalk.green(`\nApproved by ${reviewer}`));
+        } else {
+          renderLine(chalk.yellow(`\nChanges requested by ${reviewer}`));
+        }
+        renderLine(chalk.dim('\nFeedback:\n'));
+        renderLine(result.feedback);
+      } catch (err) {
+        renderError((err as Error).message);
+      }
+      break;
+    }
+
+    case 'pipeline': {
+      if (!activeTeam) {
+        renderError('No active team session.');
+        return;
+      }
+
+      // Parse: /team pipeline agent1:"prompt1" agent2:"prompt2" ...
+      const stageRegex = /(\w+):"([^"]+)"/g;
+      const stages: PipelineStage[] = [];
+      let match;
+      while ((match = stageRegex.exec(rest)) !== null) {
+        stages.push({ name: match[1], prompt: match[2] });
+      }
+
+      if (stages.length === 0) {
+        renderError('Usage: /team pipeline agent1:"task 1" agent2:"task 2" ...');
+        return;
+      }
+
+      renderLine(chalk.dim(`Running pipeline: ${stages.map((s) => s.name).join(' \u2192 ')}...`));
+      try {
+        const result = await runPipeline(activeTeam, stages);
+        for (const stage of result.stages) {
+          renderLine(chalk.bold(`\n${stage.name}:`));
+          renderLine(stage.output.slice(0, 500) + (stage.output.length > 500 ? '...' : ''));
+        }
+        renderLine(chalk.bold.green('\nPipeline complete.'));
+      } catch (err) {
+        renderError((err as Error).message);
+      }
+      break;
+    }
+
     case 'help':
     default: {
       renderLine(`
 ${chalk.bold('Team Commands')}
 
-  /team spawn <name> [--prompt "task"]   Create a new peer agent
-  /team msg <name> <message>             Send message to an agent
-  /team status                           Show all agents and tasks
-  /team synthesize                       Combine all agent outputs
-  /team merge <name>                     Merge agent's changes back
-  /team help                             Show this help
+  /team spawn <name> [--prompt "task"]              Create a new peer agent
+  /team msg <name> <message>                        Send message to an agent
+  /team status                                      Show all agents and tasks
+  /team synthesize                                  Combine all agent outputs
+  /team review <target> <reviewer> [--criteria ""]  Have one agent review another
+  /team pipeline agent1:"task" agent2:"task" ...    Sequential handoff pipeline
+  /team merge <name>                                Merge agent's changes back
+  /team help                                        Show this help
       `);
       break;
     }

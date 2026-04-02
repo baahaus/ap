@@ -157,6 +157,174 @@ export async function mergePeer(session: TeamSession, name: string): Promise<{ s
   return result;
 }
 
+export interface ReviewResult {
+  approved: boolean;
+  feedback: string;
+  reviewerName: string;
+  targetName: string;
+}
+
+/**
+ * Review pattern: one agent reviews another's output before merge.
+ * Returns approval status and feedback. Does not auto-merge.
+ */
+export async function reviewPeer(
+  session: TeamSession,
+  reviewerName: string,
+  targetName: string,
+  provider: Provider,
+  model: string,
+  criteria?: string,
+): Promise<ReviewResult> {
+  const reviewer = session.peers.get(reviewerName);
+  const target = session.peers.get(targetName);
+
+  if (!reviewer) throw new Error(`Reviewer agent "${reviewerName}" not found`);
+  if (!target) throw new Error(`Target agent "${targetName}" not found`);
+
+  // Get the target agent's last output
+  const targetMessages = target.agent.getMessages();
+  const lastOutput = [...targetMessages].reverse().find((m) => m.role === 'assistant');
+
+  if (!lastOutput) {
+    return {
+      approved: false,
+      feedback: `Agent "${targetName}" has no output to review.`,
+      reviewerName,
+      targetName,
+    };
+  }
+
+  const outputText = typeof lastOutput.content === 'string'
+    ? lastOutput.content
+    : lastOutput.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b.type === 'text' ? b.text : ''))
+        .join('');
+
+  // Get the diff from the target's worktree
+  let diff = '';
+  try {
+    const { execSync } = await import('node:child_process');
+    diff = execSync('git diff HEAD~1 --stat && echo "---" && git diff HEAD~1', {
+      cwd: target.worktree.path,
+      encoding: 'utf-8',
+      timeout: 10_000,
+    });
+  } catch {
+    diff = '(no diff available)';
+  }
+
+  const reviewPrompt = [
+    `Review the following output from agent "${targetName}".`,
+    criteria ? `\nReview criteria: ${criteria}` : '',
+    `\n## Agent Output\n${outputText}`,
+    diff !== '(no diff available)' ? `\n## Code Changes\n\`\`\`diff\n${diff}\n\`\`\`` : '',
+    '\nRespond with:\n1. APPROVED or CHANGES_REQUESTED on the first line',
+    '2. Your detailed feedback below',
+  ].filter(Boolean).join('\n');
+
+  // Send review prompt to the reviewer agent
+  reviewer.status = 'working';
+  await reviewer.agent.send(reviewPrompt);
+  reviewer.status = 'idle';
+
+  // Parse the reviewer's response
+  const reviewerMessages = reviewer.agent.getMessages();
+  const reviewResponse = [...reviewerMessages].reverse().find((m) => m.role === 'assistant');
+
+  const responseText = reviewResponse
+    ? typeof reviewResponse.content === 'string'
+      ? reviewResponse.content
+      : reviewResponse.content
+          .filter((b) => b.type === 'text')
+          .map((b) => (b.type === 'text' ? b.text : ''))
+          .join('')
+    : '';
+
+  const approved = responseText.trim().toUpperCase().startsWith('APPROVED');
+
+  // If not approved, send feedback back to the target
+  if (!approved && responseText) {
+    await sendMessage(session.id, reviewerName, targetName, 'response', responseText);
+    const targetPeer = session.peers.get(targetName);
+    if (targetPeer && targetPeer.status === 'idle') {
+      targetPeer.status = 'working';
+      await targetPeer.agent.send(`[Review from ${reviewerName}]: ${responseText}`);
+      targetPeer.status = 'idle';
+    }
+  }
+
+  return {
+    approved,
+    feedback: responseText,
+    reviewerName,
+    targetName,
+  };
+}
+
+export interface PipelineStage {
+  name: string;
+  prompt: string;
+}
+
+export interface PipelineResult {
+  stages: Array<{ name: string; output: string }>;
+  finalOutput: string;
+}
+
+/**
+ * Pipeline pattern: sequential handoff from agent to agent.
+ * Each stage receives the previous stage's output as context.
+ * Spawns agents on-demand and cleans up after.
+ */
+export async function runPipeline(
+  session: TeamSession,
+  stages: PipelineStage[],
+): Promise<PipelineResult> {
+  if (stages.length === 0) throw new Error('Pipeline requires at least one stage');
+
+  const results: Array<{ name: string; output: string }> = [];
+  let previousOutput = '';
+
+  for (const stage of stages) {
+    const prompt = previousOutput
+      ? `${stage.prompt}\n\n## Input from previous stage\n${previousOutput}`
+      : stage.prompt;
+
+    // Spawn the agent if it doesn't exist
+    let peer = session.peers.get(stage.name);
+    if (!peer) {
+      peer = await spawnPeer(session, stage.name);
+    }
+
+    peer.status = 'working';
+    await peer.agent.send(prompt);
+    peer.status = 'idle';
+
+    // Extract output
+    const messages = peer.agent.getMessages();
+    const lastOutput = [...messages].reverse().find((m) => m.role === 'assistant');
+
+    const outputText = lastOutput
+      ? typeof lastOutput.content === 'string'
+        ? lastOutput.content
+        : lastOutput.content
+            .filter((b) => b.type === 'text')
+            .map((b) => (b.type === 'text' ? b.text : ''))
+            .join('')
+      : '';
+
+    results.push({ name: stage.name, output: outputText });
+    previousOutput = outputText;
+  }
+
+  return {
+    stages: results,
+    finalOutput: previousOutput,
+  };
+}
+
 export function getTeamStatus(session: TeamSession): {
   agents: Array<{ name: string; status: string; branch: string }>;
 } {

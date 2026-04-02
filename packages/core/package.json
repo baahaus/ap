@@ -25,5 +25,17 @@
     "tsup": "^8.3.0",
     "vitest": "^2.1.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "license": "MIT",
+  "author": "AP.HAUS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baahaus/blush.git",
+    "directory": "packages/core"
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": ["agent", "coding-agent", "tool-calling", "cli"]
 }

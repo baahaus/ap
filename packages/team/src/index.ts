@@ -3,10 +3,15 @@ export {
   spawnPeer,
   messagePeer,
   synthesize,
+  reviewPeer,
+  runPipeline,
   mergePeer,
   getTeamStatus,
   type TeamSession,
   type PeerAgent,
+  type ReviewResult,
+  type PipelineStage,
+  type PipelineResult,
 } from './coordinator.js';
 
 export {

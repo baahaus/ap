@@ -5,6 +5,10 @@
   "description": "Blush -- Team CLI Agent from ap.haus (a blush of robins)",
   "author": "AP.HAUS",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baahaus/blush.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=20.0.0"

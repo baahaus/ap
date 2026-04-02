@@ -83,18 +83,18 @@ Unified interface across providers. Streaming-first. Tool calling via TypeBox sc
 
 The brain. Runs the tool-calling loop, manages state, handles message flow.
 
-**4 Core Tools:**
+**Core Tools:**
 | Tool | Purpose |
 |------|---------|
 | `read` | Read files (text + images), 2000-line default, offset/limit support |
 | `write` | Create or overwrite files |
 | `edit` | Exact string replacement with uniqueness validation |
 | `bash` | Shell execution, timeout support, background mode |
-
-**Optional tools (auto-downloaded):**
-- `grep` -- ripgrep-backed content search
-- `glob` -- fd-backed file finding
-- `ls` -- directory listing
+| `glob` | File finding by pattern |
+| `grep` | Regex-backed content search |
+| `todo` | Structured task tracking for the current session |
+| `web_fetch` | Fetch a web page and extract readable text |
+| `web_search` | Search the web for current information |
 
 **Agent loop:**
 ```
@@ -302,8 +302,8 @@ Analyze pending changes for security vulnerabilities...
 ### Phase 1 -- Foundation
 - [x] PLAN.md
 - [x] Monorepo scaffold (turborepo, tsconfig, package.json)
-- [x] @blush/ai -- Anthropic + OpenAI providers with streaming + tool calling
-- [x] @blush/core -- Agent loop with 4 core tools
+- [x] @blush/ai -- Anthropic + OpenAI + Codex providers with streaming + tool calling
+- [x] @blush/core -- Agent loop with core tools (read/write/edit/bash/glob/grep/todo)
 - [x] @blush/tui -- Basic streaming output + input
 - [x] @blush/cli -- `blush` binary that runs interactive sessions
 - [x] First working REPL: `blush` launches, accepts input, calls Claude, executes tools
@@ -326,14 +326,15 @@ Analyze pending changes for security vulnerabilities...
 - [x] Task queue (create, claim, complete, dependencies, auto-unblock)
 - [x] /team commands (spawn, msg, status, synthesize, merge)
 - [x] Consensus patterns (synthesis via LLM)
-- [ ] Review pattern (agent reviews another's output before merge)
-- [ ] Pipeline pattern (sequential handoff)
+- [x] Review pattern (agent reviews another's output before merge)
+- [x] Pipeline pattern (sequential handoff)
 
 ### Phase 4 -- Ecosystem
 - [x] Extension loading + API (register tools, commands, events, context)
 - [x] Skills system (markdown+frontmatter, progressive disclosure, /skills command)
 - [ ] Package registry (blush install <package>)
 - [x] OpenAI + generic providers
+- [x] GPT-5/Codex provider routing (ChatGPT-backed Codex auth)
 - [x] OpenAI-compatible endpoint support (Ollama, vLLM, custom URLs)
 - [x] Wren compression integration (CLI + HTTP modes, auto-detect, tool output compression)
 - [x] /diff command (colorized git diff)
@@ -441,6 +442,13 @@ Analyze pending changes for security vulnerabilities...
    - JSON output: --json flag for print mode
    - Checkpoint system: conversation + git state rewind after tool calls
 
+9. `(current)` -- Provider/auth + core tool expansion
+   - Anthropic OAuth requests now preserve the requested model, format OAuth system prompts correctly, and retry on 429 without silent Haiku fallback
+   - GPT-5 model resolution routes through the Codex provider when available
+   - Added `glob`, `grep`, and `todo` to the core tool registry
+   - Updated the base system prompt and docs so the agent advertises the expanded tool surface
+   - Added targeted core-tool tests for file discovery, content search, and todo state
+
 **What works:**
 - `ap --help`, `ap --version` -- binary runs standalone
 - `ap -p "question"` -- print mode (needs API key)
@@ -455,9 +463,10 @@ Analyze pending changes for security vulnerabilities...
 - All 5 packages build clean in ~3s (full turbo cache in 7ms)
 - Extension system loads from ~/.ap/extensions/ and .ap/extensions/
 - Skills loaded from ~/.ap/skills/ and .ap/skills/
-- Provider auto-detection: claude*, gpt*, o1*, o3*
+- Provider auto-detection: claude*, gpt-5* (Codex when available), gpt-4*/o1*/o3*
 - Custom endpoint support: `ollama:model`, `local:model`, `http://url:port/v1:model`
 - SDK: `import { createApSession } from '@blush/cli/sdk'`
+- Core tools available to the agent: `read`, `write`, `edit`, `bash`, `glob`, `grep`, `todo`
 
 **What needs API key to test end-to-end:**
 - Full agent loop (send -> LLM -> tool calls -> loop)
@@ -483,12 +492,45 @@ Analyze pending changes for security vulnerabilities...
     - Updated help with all subcommands and key bindings
     - Comprehensive README with all features documented
 
+### 2026-04-02 -- Identity, Team Patterns, Tests, CI/CD
+
+**Changes:**
+
+1. Fixed identity: replaced all Claude Code branding in OAuth layer with Blush/ap.haus identity
+   - `OAUTH_IDENTITY` now says "Blush, a terminal coding agent from ap.haus"
+   - Renamed `getClaudeCodeOAuth()` to `getSubscriptionOAuth()` (still reads Claude Code keychain)
+   - Updated error messages and comments
+
+2. Implemented review consensus pattern (`reviewPeer()`)
+   - Reviewer agent gets target's output + git diff
+   - Parses APPROVED/CHANGES_REQUESTED response
+   - Sends feedback back to target if not approved
+   - Wired to `/team review <target> <reviewer> [--criteria "..."]`
+
+3. Implemented pipeline consensus pattern (`runPipeline()`)
+   - Sequential handoff: each stage gets previous stage's output
+   - Auto-spawns agents on-demand
+   - Wired to `/team pipeline agent1:"task1" agent2:"task2" ...`
+
+4. Added tests for all untested packages (56 total across 7 files)
+   - `@blush/tui`: 15 tests (themes, input parsing, markdown rendering)
+   - `@blush/cli`: 7 tests (command parsing, branding, exports)
+   - `@blush/team`: 15 tests (mailbox, taskqueue, worktree)
+
+5. Added GitHub Actions CI/CD
+   - `ci.yml`: build + test on push/PR (Node 20 + 22 matrix)
+   - `publish.yml`: publish to npm on version tags
+
+6. Configured npm publish pipeline
+   - All 5 packages: `publishConfig`, `repository`, `files`, `keywords`, `license`, `author`
+   - `pnpm -r publish --access public` for scoped @blush/* packages
+
 **Remaining work:**
 - End-to-end testing with real API key
-- npm publish pipeline
-- CI/CD (GitHub Actions)
+- Set `NPM_TOKEN` secret in GitHub repo for publish workflow
+- First publish: `git tag v0.1.0 && git push --tags`
 
 ---
 
-*Last updated: 2026-04-01*
-*Status: All 5 phases complete. Feature-complete CLI agent. Remaining: e2e testing, npm publish, CI/CD.*
+*Last updated: 2026-04-02*
+*Status: All phases complete. 56 tests passing. CI/CD configured. Ready for npm publish once NPM_TOKEN is set.*

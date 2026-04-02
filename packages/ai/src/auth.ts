@@ -10,10 +10,10 @@ interface OAuthCredentials {
 let cachedOAuth: OAuthCredentials | null = null;
 
 /**
- * Read Claude Code's OAuth token from the macOS keychain.
- * This lets blush use your Anthropic subscription (Pro/Max) without a separate API key.
+ * Read OAuth token from the macOS keychain (stored by Claude Code).
+ * Blush piggybacks off Claude Code's subscription credentials.
  */
-export function getClaudeCodeOAuth(): OAuthCredentials | null {
+export function getSubscriptionOAuth(): OAuthCredentials | null {
   if (cachedOAuth) {
     if (cachedOAuth.expiresAt > Date.now()) {
       return cachedOAuth;
@@ -51,23 +51,35 @@ export function getClaudeCodeOAuth(): OAuthCredentials | null {
   }
 }
 
-/**
- * Get auth headers for the Anthropic API.
- * Prefers OAuth (subscription) over API key.
- *
- * OAuth requires specific headers:
- * - anthropic-beta must include oauth-2025-04-20 and claude-code-20250219
- * - user-agent must look like claude-cli
- * - x-app: cli
- */
-export function getAnthropicAuthHeaders(apiKey?: string): {
+export type AuthMode = 'api_key' | 'oauth';
+
+export interface AnthropicAuth {
+  mode: AuthMode;
   headers: Record<string, string>;
   queryParams?: string;
-} {
-  // Try OAuth first (Claude Pro/Max subscription)
-  const oauth = getClaudeCodeOAuth();
+}
+
+/**
+ * Get auth for the Anthropic API.
+ *
+ * Priority:
+ * 1. API key
+ * 2. OAuth from Claude Code subscription (auto-detected from keychain)
+ */
+export function getAnthropicAuth(apiKey?: string): AnthropicAuth {
+  // Prefer API key when explicitly configured.
+  if (apiKey) {
+    return {
+      mode: 'api_key',
+      headers: { 'x-api-key': apiKey },
+    };
+  }
+
+  // Fall back to subscription OAuth credentials when available.
+  const oauth = getSubscriptionOAuth();
   if (oauth) {
     return {
+      mode: 'oauth',
       headers: {
         'Authorization': `Bearer ${oauth.accessToken}`,
         'anthropic-beta': 'claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-scope-2026-01-05',
@@ -78,19 +90,11 @@ export function getAnthropicAuthHeaders(apiKey?: string): {
     };
   }
 
-  // Fall back to API key
-  if (apiKey) {
-    return {
-      headers: {
-        'x-api-key': apiKey,
-      },
-    };
-  }
-
   throw new Error(
     'No Anthropic auth found. Options:\n' +
-    '  1. Log into Claude Code (uses your subscription automatically)\n' +
-    '  2. ANTHROPIC_API_KEY environment variable\n' +
-    '  3. ~/.blush/config.json: { "anthropic_api_key": "sk-..." }'
+    '  1. ANTHROPIC_API_KEY env var or ~/.blush/config.json\n' +
+    '  2. Claude subscription (auto-detected from keychain)\n' +
+    '\n' +
+    'Get an API key at: https://console.anthropic.com/settings/keys'
   );
 }
