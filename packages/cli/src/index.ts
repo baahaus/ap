@@ -11,10 +11,17 @@ import {
   renderToolStart,
   renderToolEnd,
   renderError,
+  renderDim,
   renderPrompt,
+  renderWelcome,
+  renderStatus,
+  renderDivider,
+  renderHelp,
   setTheme,
   getTheme,
   listThemes,
+  createSpinner,
+  sym,
 } from '@blush/tui';
 import { btw, compact, copy, showContext, showDiff, showSuggestions, handleTeamCommand, showSkills } from './commands/index.js';
 
@@ -89,62 +96,78 @@ function parseArgs(args: string[]): CliOptions {
 }
 
 async function listSessionsCommand(): Promise<void> {
+  const theme = getTheme();
   const cwd = process.cwd();
   const sessions = await listSessions(cwd);
   if (sessions.length === 0) {
-    console.log(chalk.dim('No sessions found for this directory.'));
+    renderDim('  No sessions found for this directory.');
     return;
   }
-  console.log(chalk.bold('Sessions:'));
+  renderLine(chalk.hex(theme.text).bold('\n  Sessions\n'));
   for (const id of sessions) {
-    console.log(`  ${id}`);
+    renderLine(`  ${chalk.hex(theme.dim)(sym.bullet)} ${id}`);
   }
+  renderLine('');
 }
 
 function printHelp(): void {
-  console.log(`
-${chalk.bold('blush')} -- Team CLI Agent from ap.haus
+  const theme = getTheme();
 
-${chalk.bold('Usage:')}
-  blush                      Interactive mode (new session)
-  blush -p "question"          Print mode (single response)
-  blush -p "q" --json          Print mode with JSON output
-  blush --rpc                  RPC mode (JSONL over stdin/stdout)
-  blush -r, --resume           Resume last session
-  blush -s, --session <id>     Resume specific session
-  blush -n, --new              Force new session
-  blush -m <model>             Set model (anthropic/openai/ollama/url)
-  blush -t, --theme <name>     Set color theme
-  blush --color <hex>          Set prompt color
+  renderLine('');
+  renderLine(chalk.hex(theme.prompt).bold('  blush') + chalk.hex(theme.dim)(' -- team CLI agent from ap.haus'));
+  renderLine('');
 
-${chalk.bold('Subcommands:')}
-  blush init                   First-time setup (create ~/.blush, config)
-  blush sessions               List sessions for current directory
-  blush install <source>       Install package (npm:pkg, user/repo, git:url)
-  blush list                   List installed packages
-  blush remove <name>          Remove a package
+  renderDivider('usage');
+  renderLine('');
+  renderHelp([
+    ['  blush', 'Interactive mode (new session)'],
+    ['  blush -p "question"', 'Print mode (single response)'],
+    ['  blush -p "q" --json', 'Print mode with JSON output'],
+    ['  blush --rpc', 'RPC mode (JSONL over stdin/stdout)'],
+    ['  blush -r, --resume', 'Resume last session'],
+    ['  blush -s, --session <id>', 'Resume specific session'],
+    ['  blush -m <model>', 'Set model'],
+    ['  blush -t, --theme <name>', 'Set color theme'],
+  ]);
 
-${chalk.bold('Commands:')}
-  /btw <question>           Ephemeral question (no history)
-  /compact [focus]          Compress conversation
-  /branch                   Fork conversation at current point
-  /context                  Show context window usage
-  /diff                     Show uncommitted git changes
-  /model <name>             Switch model
-  /team <subcommand>        Team management
-  /skills                   List installed skills
-  /theme [name]             Set or show color theme
-  /save                     Save session now
-  /sessions                 List sessions
-  /copy [N]                 Copy Nth response to clipboard
-  /help                     Show this help
-  /exit                     Exit
+  renderLine('');
+  renderDivider('subcommands');
+  renderLine('');
+  renderHelp([
+    ['  blush init', 'First-time setup'],
+    ['  blush sessions', 'List sessions for current directory'],
+    ['  blush install <source>', 'Install package'],
+    ['  blush list', 'List installed packages'],
+    ['  blush remove <name>', 'Remove a package'],
+  ]);
 
-${chalk.bold('Keys:')}
-  Enter                     Send message
-  !command                  Run shell command directly
-  Ctrl+C                    Exit
-  `);
+  renderLine('');
+  renderDivider('commands');
+  renderLine('');
+  renderHelp([
+    ['  /btw <question>', 'Ephemeral question (no history)'],
+    ['  /compact [focus]', 'Compress conversation'],
+    ['  /branch', 'Fork conversation at current point'],
+    ['  /context', 'Show context window usage'],
+    ['  /diff', 'Show uncommitted git changes'],
+    ['  /model <name>', 'Switch model'],
+    ['  /team <subcommand>', 'Team management'],
+    ['  /skills', 'List installed skills'],
+    ['  /theme [name]', 'Set or show color theme'],
+    ['  /copy [N]', 'Copy Nth response to clipboard'],
+    ['  /help', 'Show this help'],
+    ['  /exit', 'Exit'],
+  ]);
+
+  renderLine('');
+  renderDivider('keys');
+  renderLine('');
+  renderHelp([
+    ['  Enter', 'Send message'],
+    ['  !command', 'Run shell command directly'],
+    ['  Ctrl+C', 'Exit'],
+  ]);
+  renderLine('');
 }
 
 export async function run(): Promise<void> {
@@ -163,18 +186,15 @@ export async function run(): Promise<void> {
   // Apply theme
   if (opts.theme) {
     if (!setTheme(opts.theme)) {
-      console.error(`Unknown theme: ${opts.theme}. Available: ${listThemes().join(', ')}`);
+      renderError(`Unknown theme: ${opts.theme}. Available: ${listThemes().join(', ')}`);
     }
   }
 
   // Load skills
   const skills = new SkillRegistry();
   const skillCount = await skills.loadAll(cwd);
-  if (skillCount > 0) {
-    console.log(chalk.dim(`Loaded ${skillCount} skill(s)`));
-  }
 
-  // Handle session resume -- load before creating agent
+  // Handle session resume
   let existingSession: Awaited<ReturnType<typeof loadSession>> | undefined = undefined;
   if (opts.resume || opts.sessionId) {
     const sessions = await listSessions(cwd);
@@ -183,15 +203,16 @@ export async function run(): Promise<void> {
       const loaded = await loadSession(cwd, targetId);
       if (loaded) {
         existingSession = loaded;
-        console.log(chalk.dim(`Resumed session: ${targetId} (${loaded.entries.length} messages)`));
+        renderDim(`  Resumed session: ${targetId} (${loaded.entries.length} messages)`);
       } else {
-        console.log(chalk.dim(`Session not found: ${targetId}, starting new`));
+        renderDim(`  Session not found: ${targetId}, starting new`);
       }
     }
   }
 
-  // Lazy agent creation -- defer provider resolution until first use
+  // Lazy agent creation
   let agent: Awaited<ReturnType<typeof createAgent>> | null = null;
+  const spinner = createSpinner();
 
   async function getAgent() {
     if (agent) return agent;
@@ -210,7 +231,7 @@ export async function run(): Promise<void> {
             renderText(event.text || '');
             break;
           case 'thinking':
-            renderText(chalk.dim(event.text || ''));
+            renderText(chalk.hex(getTheme().dim)(event.text || ''));
             break;
           case 'error':
             renderError(event.error || 'Unknown error');
@@ -229,7 +250,7 @@ export async function run(): Promise<void> {
     return agent;
   }
 
-  // Print mode: needs agent immediately
+  // Print mode
   if (opts.print) {
     try {
       const a = await getAgent();
@@ -255,25 +276,31 @@ export async function run(): Promise<void> {
     process.exit(0);
   }
 
-  // Interactive mode -- starts immediately, no API key needed
-  console.log(chalk.dim(`blush ${VERSION} | ${currentModel} | /help for commands`));
+  // Interactive mode -- show welcome banner
+  renderWelcome(VERSION, currentModel);
+
+  if (skillCount > 0) {
+    renderDim(`  ${sym.toolDone} ${skillCount} skill(s) loaded`);
+  }
 
   const input = createInput();
+  const theme = getTheme();
 
   // Graceful shutdown
   process.on('SIGINT', async () => {
     renderText('\n');
     if (agent) {
       await saveSession(agent.session);
-      console.log(chalk.dim(`Session saved: ${agent.session.id}`));
+      renderDim(`  Session saved: ${agent.session.id}`);
     }
     input.close();
     process.exit(0);
   });
 
   const handleCommand = async (name: string, args: string): Promise<boolean> => {
+    const theme = getTheme();
+
     switch (name) {
-      // --- Commands that DON'T need the agent/API key ---
       case 'diff':
         showDiff();
         return true;
@@ -286,13 +313,17 @@ export async function run(): Promise<void> {
         if (!args) {
           const current = getTheme();
           const available = listThemes();
-          renderLine(chalk.dim(`Current: ${current.name}`));
-          renderLine(chalk.dim(`Available: ${available.join(', ')}`));
+          renderLine('');
+          for (const themeName of available) {
+            const marker = themeName === current.name ? chalk.hex(current.prompt)(sym.prompt) : ' ';
+            renderLine(`  ${marker} ${chalk.hex(current.dim)(themeName)}`);
+          }
+          renderLine('');
           return true;
         }
         if (setTheme(args.trim())) {
           const t = getTheme();
-          renderLine(chalk.hex(t.prompt)(`Theme set: ${t.name}`));
+          renderLine(`\n  ${chalk.hex(t.prompt)(sym.toolDone)} Theme: ${chalk.hex(t.prompt)(t.label)}\n`);
         } else {
           renderError(`Unknown theme: ${args}. Available: ${listThemes().join(', ')}`);
         }
@@ -301,23 +332,16 @@ export async function run(): Promise<void> {
 
       case 'model':
         if (!args) {
-          renderLine(chalk.dim(`Current model: ${currentModel}`));
+          renderDim(`  Current model: ${currentModel}`);
           return true;
         }
         currentModel = args.trim();
-        agent = null; // Force re-creation with new model
-        renderLine(chalk.dim(`Model set to: ${currentModel} (will resolve on next message)`));
+        agent = null;
+        renderDim(`  Model set to: ${currentModel}`);
         return true;
 
       case 'sessions': {
-        const sessions = await listSessions(cwd);
-        if (sessions.length === 0) {
-          renderLine(chalk.dim('No sessions.'));
-        } else {
-          for (const id of sessions) {
-            renderLine(`  ${id}`);
-          }
-        }
+        await listSessionsCommand();
         return true;
       }
 
@@ -329,12 +353,11 @@ export async function run(): Promise<void> {
       case 'quit':
         if (agent) {
           await saveSession(agent.session);
-          console.log(chalk.dim(`Session saved: ${agent.session.id}`));
+          renderDim(`  Session saved: ${agent.session.id}`);
         }
         input.close();
         process.exit(0);
 
-      // --- Commands that NEED the agent/API key ---
       case 'btw': {
         if (!args) {
           renderError('/btw requires a question');
@@ -361,7 +384,7 @@ export async function run(): Promise<void> {
 
       case 'branch': {
         const a = await getAgent();
-        renderLine(chalk.dim(`Conversation branched at: ${a.session.currentBranch}`));
+        renderDim(`  Conversation branched at: ${a.session.currentBranch}`);
         return true;
       }
 
@@ -374,7 +397,7 @@ export async function run(): Promise<void> {
       case 'save': {
         const a = await getAgent();
         await saveSession(a.session);
-        renderLine(chalk.dim(`Session saved: ${a.session.id}`));
+        renderDim(`  Session saved: ${a.session.id}`);
         return true;
       }
 
@@ -385,18 +408,17 @@ export async function run(): Promise<void> {
       }
 
       default: {
-        // Check skill triggers
         const skill = skills.findByTrigger(`/${name}`);
         if (skill) {
           const content = skills.activate(skill.name);
           if (content) {
-            renderLine(chalk.dim(`Activated skill: ${skill.name}`));
+            renderDim(`  ${sym.toolDone} Activated skill: ${skill.name}`);
             const a = await getAgent();
             const prompt = args ? `${content}\n\nUser request: ${args}` : content;
             await a.send(prompt);
             renderText('\n');
           } else {
-            renderLine(chalk.dim(`Skill ${skill.name} already active.`));
+            renderDim(`  Skill ${skill.name} already active.`);
             if (args) {
               const a = await getAgent();
               await a.send(args);
@@ -406,7 +428,6 @@ export async function run(): Promise<void> {
           return true;
         }
 
-        // Check extension commands (needs agent for extensions)
         if (agent) {
           const extCmd = agent.extensions.getCommand(name);
           if (extCmd) {
@@ -439,9 +460,8 @@ export async function run(): Promise<void> {
             const { execSync } = await import('node:child_process');
             const output = execSync(cmd, { cwd, encoding: 'utf-8', timeout: 30000 });
             if (output.trim()) {
-              renderLine(chalk.dim(output.trimEnd()));
+              renderLine(chalk.hex(getTheme().dim)(output.trimEnd()));
             }
-            // Add to conversation context if agent exists
             if (agent !== null) {
               const { addEntry } = await import('@blush/core');
               addEntry(agent!.session, {
@@ -463,11 +483,23 @@ export async function run(): Promise<void> {
         continue;
       }
 
-      // Send to agent (this triggers lazy init + API key check)
+      // Send to agent
       try {
         const a = await getAgent();
+
+        const startTime = Date.now();
         await a.send(trimmed);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
         renderText('\n');
+
+        // Show status after response
+        const total = a.usage.total;
+        renderStatus({
+          tokens: String(total.inputTokens + total.outputTokens),
+          cost: `$${((total.inputTokens * 0.003 + total.outputTokens * 0.015) / 1000).toFixed(3)}`,
+          time: `${elapsed}s`,
+        });
 
         // Show prompt suggestions (non-blocking)
         const { provider: p } = resolveProvider(currentModel);

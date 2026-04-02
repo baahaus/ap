@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { isCommand, parseCommand } from './input.js';
 import { themes, setTheme, getTheme, listThemes } from './themes.js';
 import { renderMarkdown } from './renderer.js';
+import { sym, dotLeader, rule, box } from './symbols.js';
 
 describe('isCommand', () => {
   it('returns true for slash-prefixed input', () => {
@@ -37,31 +38,43 @@ describe('parseCommand', () => {
 
 describe('themes', () => {
   afterEach(() => {
-    setTheme('default');
+    setTheme('blush');
   });
 
   it('has 7 themes', () => {
     expect(listThemes()).toHaveLength(7);
     expect(listThemes()).toEqual(
-      expect.arrayContaining(['default', 'mono', 'ocean', 'forest', 'sunset', 'rose', 'hacker']),
+      expect.arrayContaining(['blush', 'mono', 'ocean', 'forest', 'sunset', 'rose', 'hacker']),
     );
   });
 
   it('each theme has required color fields', () => {
+    const hexPattern = /^#[0-9A-Fa-f]{6}$/;
     for (const name of listThemes()) {
       const theme = themes[name];
       expect(theme.name).toBe(name);
-      expect(theme.prompt).toMatch(/^#[0-9A-Fa-f]{6}$/);
-      expect(theme.accent).toMatch(/^#[0-9A-Fa-f]{6}$/);
-      expect(theme.dim).toMatch(/^#[0-9A-Fa-f]{6}$/);
-      expect(theme.error).toMatch(/^#[0-9A-Fa-f]{6}$/);
-      expect(theme.success).toMatch(/^#[0-9A-Fa-f]{6}$/);
-      expect(theme.warning).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      expect(theme.prompt).toMatch(hexPattern);
+      expect(theme.accent).toMatch(hexPattern);
+      expect(theme.text).toMatch(hexPattern);
+      expect(theme.dim).toMatch(hexPattern);
+      expect(theme.muted).toMatch(hexPattern);
+      expect(theme.error).toMatch(hexPattern);
+      expect(theme.success).toMatch(hexPattern);
+      expect(theme.warning).toMatch(hexPattern);
+      expect(theme.border).toMatch(hexPattern);
+      expect(theme.highlight).toMatch(hexPattern);
     }
   });
 
-  it('defaults to default theme', () => {
-    expect(getTheme().name).toBe('default');
+  it('each theme has a label', () => {
+    for (const name of listThemes()) {
+      expect(themes[name].label).toBeTruthy();
+      expect(themes[name].label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('defaults to blush theme', () => {
+    expect(getTheme().name).toBe('blush');
   });
 
   it('setTheme changes active theme', () => {
@@ -71,7 +84,46 @@ describe('themes', () => {
 
   it('setTheme returns false for unknown theme', () => {
     expect(setTheme('nonexistent')).toBe(false);
-    expect(getTheme().name).toBe('default');
+    expect(getTheme().name).toBe('blush');
+  });
+});
+
+describe('symbols', () => {
+  it('has required prompt and tool symbols', () => {
+    expect(sym.prompt).toBeTruthy();
+    expect(sym.toolRun).toBeTruthy();
+    expect(sym.toolDone).toBeTruthy();
+    expect(sym.toolFail).toBeTruthy();
+  });
+
+  it('has box drawing characters', () => {
+    expect(sym.boxTL).toBe('\u256d');
+    expect(sym.boxTR).toBe('\u256e');
+    expect(sym.boxBL).toBe('\u2570');
+    expect(sym.boxBR).toBe('\u256f');
+  });
+
+  it('spinner has 8 frames', () => {
+    expect(sym.spinner).toHaveLength(8);
+  });
+
+  it('dotLeader fills space between label and value', () => {
+    const result = dotLeader('model', 'claude', 30);
+    expect(result).toContain('model');
+    expect(result).toContain('claude');
+    expect(result).toContain(sym.dotRule);
+  });
+
+  it('rule generates a line of given width', () => {
+    const r = rule(10);
+    expect(r).toHaveLength(10);
+  });
+
+  it('box wraps lines with rounded corners', () => {
+    const result = box(['hello', 'world'], 20);
+    expect(result[0]).toContain(sym.boxTL);
+    expect(result[result.length - 1]).toContain(sym.boxBR);
+    expect(result.length).toBe(4); // top + 2 content + bottom
   });
 });
 
@@ -99,6 +151,12 @@ describe('renderMarkdown', () => {
     const result = renderMarkdown('```js\nconst x = 1;\n```');
     expect(result).toContain('const x = 1;');
     expect(result).not.toContain('```');
+  });
+
+  it('renders bullet lists with custom bullet', () => {
+    const result = renderMarkdown('- item one\n- item two');
+    expect(result).toContain(sym.bullet);
+    expect(result).toContain('item one');
   });
 
   it('passes through plain text unchanged', () => {
