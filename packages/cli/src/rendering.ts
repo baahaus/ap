@@ -1,18 +1,22 @@
 export function prefixStreamChunk(
   text: string,
-  prefix: string,
+  prefix: string | { first: string; continuation?: string },
   lineStart = true,
 ): { output: string; lineStart: boolean } {
   let output = '';
   let atLineStart = lineStart;
+  let usedChunkPrefix = false;
   const parts = text.split('\n');
+  const firstPrefix = typeof prefix === 'string' ? prefix : prefix.first;
+  const continuationPrefix = typeof prefix === 'string' ? prefix : (prefix.continuation || prefix.first);
 
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
 
     if (part.length > 0) {
       if (atLineStart) {
-        output += prefix;
+        output += !usedChunkPrefix ? firstPrefix : continuationPrefix;
+        usedChunkPrefix = true;
         atLineStart = false;
       }
       output += part;
@@ -25,6 +29,16 @@ export function prefixStreamChunk(
   }
 
   return { output, lineStart: atLineStart };
+}
+
+export function assistantPrefix(prefixLabel: string, continuationPrefix: string): {
+  first: string;
+  continuation: string;
+} {
+  return {
+    first: prefixLabel,
+    continuation: continuationPrefix,
+  };
 }
 
 function truncateSingleLine(text: string, maxLength = 56): string {

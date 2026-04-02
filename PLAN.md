@@ -36,10 +36,11 @@ Current product gaps:
 - Make errors, retries, and rate limits read like product surfaces instead of raw failures
 
 **P1 -- Terminal UX**
-- Replace bare readline input with a retained composer
+- Retained transcript/composer/footer layout is now in progress in `@blush/tui`; keep pushing it until the prompt behaves like a real docked composer instead of terminal scrollback
 - Add multiline drafting, slash-command completion, shell/path completion, and input history
 - Support queueing follow-ups, interrupting after tool completion, and cleaner abort behavior
-- Improve transcript hierarchy so user, assistant, tools, and status each have distinct visual roles
+- Improve transcript hierarchy so user, assistant, tools, suggestions, and status each have distinct visual roles
+- Route interactive commands and overlays through the shared retained renderer so common flows do not fall back to raw stderr output
 
 **P2 -- Advanced Flows**
 - Real branch picker and history navigation instead of exposing raw branch ids
@@ -178,6 +179,11 @@ Retained-mode terminal rendering. Not React-based. Direct ANSI escape codes with
 - Differential updates (only redraw what changed)
 - 256-color + truecolor support
 - Responsive to terminal resize
+
+**Current state:**
+- Retained composer/transcript/footer rendering has started replacing the old bare prompt loop
+- Slash/model/theme/session/path completion and prompt history exist, but multiline drafting and queued follow-ups still need work
+- Some command surfaces still need to be normalized into the retained layout to fully match Claude Code / Codex / Amp quality
 
 ### @blush/cli -- Main Binary
 

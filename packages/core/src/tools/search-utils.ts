@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 const DEFAULT_IGNORED_DIRS = new Set([
   '.git',
@@ -19,9 +19,13 @@ export function globToRegex(pattern: string): RegExp {
   for (let i = 0; i < pattern.length; i++) {
     const char = pattern[i];
     const next = pattern[i + 1];
+    const nextNext = pattern[i + 2];
 
     if (char === '*') {
-      if (next === '*') {
+      if (next === '*' && nextNext === '/') {
+        regex += '(?:.*/)?';
+        i += 2;
+      } else if (next === '*') {
         regex += '.*';
         i++;
       } else {
@@ -43,6 +47,44 @@ export function globToRegex(pattern: string): RegExp {
 
 export function resolveSearchRoot(path?: string): string {
   return resolve(path || process.cwd());
+}
+
+function hasGlobMagic(segment: string): boolean {
+  return /[*?[]/.test(segment);
+}
+
+export function inferGlobSearchScope(pattern: string, path?: string): { root: string; pattern: string } {
+  const baseRoot = resolveSearchRoot(path);
+  const normalized = pattern.split(sep).join('/');
+  const segments = normalized.split('/').filter(Boolean);
+
+  if (!hasGlobMagic(normalized)) {
+    const dir = dirname(normalized);
+    return {
+      root: resolve(baseRoot, dir === '.' ? '' : dir),
+      pattern: basename(normalized),
+    };
+  }
+
+  const literalSegments: string[] = [];
+  let globStart = segments.length;
+  for (const [index, segment] of segments.entries()) {
+    if (hasGlobMagic(segment)) {
+      globStart = index;
+      break;
+    }
+    literalSegments.push(segment);
+  }
+
+  const root = literalSegments.length > 0
+    ? resolve(baseRoot, literalSegments.join('/'))
+    : baseRoot;
+  const remainingSegments = segments.slice(globStart);
+
+  return {
+    root,
+    pattern: remainingSegments.length > 0 ? remainingSegments.join('/') : '**',
+  };
 }
 
 export function toPosixRelative(root: string, fullPath: string): string {

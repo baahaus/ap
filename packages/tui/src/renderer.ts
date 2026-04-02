@@ -1,17 +1,36 @@
 import chalk from 'chalk';
 import { getTheme } from './themes.js';
-import { sym, dotLeader, rule, box } from './symbols.js';
+import { sym, rule, box } from './symbols.js';
+import { appendTranscript, isLayoutActive, renderLayout, setFooterLines } from './layout.js';
+import { pause } from './motion.js';
+
+function metaLine(label: string, value: string): string {
+  const theme = getTheme();
+  return `  ${chalk.hex(theme.dim)(label)} ${chalk.hex(theme.text)(value)}`;
+}
+
+function inlineMeta(...pairs: Array<[string, string]>): string {
+  const theme = getTheme();
+  return `  ${pairs.map(([label, value]) =>
+    `${chalk.hex(theme.dim)(label)} ${chalk.hex(theme.text)(value)}`,
+  ).join(`  ${chalk.hex(theme.border)(sym.dot)}  `)}`;
+}
 
 // ─────────────────────────────────────────
 // Core output primitives
 // ─────────────────────────────────────────
 
 export function renderText(text: string): void {
+  if (isLayoutActive()) {
+    appendTranscript(text);
+    renderLayout();
+    return;
+  }
   process.stdout.write(text);
 }
 
 export function renderLine(text: string): void {
-  process.stdout.write(text + '\n');
+  renderText(text + '\n');
 }
 
 export function clearLine(): void {
@@ -59,27 +78,38 @@ const farewells = [
   'take care out there.',
 ];
 
-export function renderWelcome(version: string, model: string, project = 'workspace', session = 'new session'): void {
+export async function renderWelcome(
+  version: string,
+  model: string,
+  project = 'workspace',
+  session = 'new session',
+): Promise<void> {
   const theme = getTheme();
-  const w = Math.min(process.stdout.columns || 80, 64);
+  const w = Math.min(process.stdout.columns || 80, 68);
 
   const lines = [
     '',
-    `${chalk.hex(theme.prompt).bold('blush')} ${chalk.hex(theme.dim)(`v${version}`)} ${chalk.hex(theme.muted)(sym.dot)} ${chalk.hex(theme.text)('workspace ready')}`,
+    `  ${chalk.hex(theme.prompt).bold('blush')}  ${chalk.hex(theme.text).bold(timeGreeting())}`,
+    `  ${chalk.hex(theme.dim)(`team cli agent from ap.haus ${sym.dot} v${version}`)}`,
     '',
-    chalk.hex(theme.dim)(dotLeader('project', project, w - 6)),
-    chalk.hex(theme.dim)(dotLeader('model', model, w - 6)),
-    chalk.hex(theme.dim)(dotLeader('session', session, w - 6)),
-    chalk.hex(theme.dim)(dotLeader('theme', theme.label, w - 6)),
+    `  ${chalk.hex(theme.border)(rule(Math.max(12, w - 14), sym.thinRule))}`,
     '',
-    chalk.hex(theme.muted)(`${sym.prompt} /model switch ${sym.dot} /theme style ${sym.dot} /help commands`),
+    metaLine('project', project),
+    inlineMeta(['model', model], ['theme', theme.label]),
+    metaLine('session', session),
+    '',
+    `  ${chalk.hex(theme.accent)('/model')} ${chalk.hex(theme.dim)('switch')}  ${chalk.hex(theme.border)(sym.dot)}  ${chalk.hex(theme.accent)('/theme')} ${chalk.hex(theme.dim)('style')}`,
+    `  ${chalk.hex(theme.accent)('tab')} ${chalk.hex(theme.dim)('complete')}  ${chalk.hex(theme.border)(sym.dot)}  ${chalk.hex(theme.accent)('/help')} ${chalk.hex(theme.dim)('commands')}`,
     '',
   ];
 
   const bordered = box(lines.map((l) => l || ''), w);
   renderLine('');
-  for (const line of bordered) {
+  for (const [index, line] of bordered.entries()) {
     renderLine(chalk.hex(theme.border)(line));
+    if (index < bordered.length - 1) {
+      await pause(index < 2 ? 14 : 10);
+    }
   }
   renderLine('');
 }
@@ -105,10 +135,7 @@ export function renderGoodbye(sessionId?: string): void {
 
 export function renderToolStart(name: string, detail?: string): void {
   const theme = getTheme();
-  const detailStr = detail ? chalk.hex(theme.muted)(` ${detail}`) : '';
-  process.stderr.write(
-    `\n  ${chalk.hex(theme.accent)(sym.toolRun)} ${chalk.hex(theme.dim)(name)}${detailStr} `,
-  );
+  renderLine(`  ${chalk.hex(theme.accent)(name)}  ${chalk.hex(theme.dim)(detail || 'working')}`);
 }
 
 export function renderToolEnd(name: string, result: string): void {
@@ -126,16 +153,12 @@ export function renderToolEnd(name: string, result: string): void {
     summary = result.slice(0, 50).trim() || 'done';
   }
 
-  process.stderr.write(
-    `${chalk.hex(theme.success)(sym.toolDone)} ${chalk.hex(theme.muted)(summary)}\n`,
-  );
+  renderLine(`  ${chalk.hex(theme.success)(name)}  ${chalk.hex(theme.dim)(summary)}`);
 }
 
 export function renderToolError(name: string, error: string): void {
   const theme = getTheme();
-  process.stderr.write(
-    `${chalk.hex(theme.error)(sym.toolFail)} ${chalk.hex(theme.error)(error)}\n`,
-  );
+  renderLine(`  ${chalk.hex(theme.error)(name)}  ${chalk.hex(theme.error)(error)}`);
 }
 
 /**
@@ -153,13 +176,11 @@ export function renderToolResult(name: string, result: string, expanded = false)
   // Expanded view: show content with left border
   const preview = lines.slice(0, 12);
   for (const line of preview) {
-    process.stderr.write(
-      `    ${chalk.hex(theme.border)(sym.boxV)} ${chalk.hex(theme.dim)(line)}\n`,
-    );
+    renderLine(`    ${chalk.hex(theme.border)(sym.boxV)} ${chalk.hex(theme.dim)(line)}`);
   }
   if (lines.length > 12) {
-    process.stderr.write(
-      `    ${chalk.hex(theme.border)(sym.boxV)} ${chalk.hex(theme.muted)(`${sym.ellipsis} ${lines.length - 12} more lines`)}\n`,
+    renderLine(
+      `    ${chalk.hex(theme.border)(sym.boxV)} ${chalk.hex(theme.muted)(`${sym.ellipsis} ${lines.length - 12} more lines`)}`,
     );
   }
 }
@@ -236,23 +257,17 @@ export function renderMarkdown(text: string): string {
 
 export function renderError(error: string): void {
   const theme = getTheme();
-  process.stderr.write(
-    `\n  ${chalk.hex(theme.error)(sym.toolFail)} ${chalk.hex(theme.error)(error)}\n`,
-  );
+  renderLine(`  ${chalk.hex(theme.error)('error')}  ${chalk.hex(theme.error)(error)}`);
 }
 
 export function renderSuccess(message: string): void {
   const theme = getTheme();
-  process.stderr.write(
-    `  ${chalk.hex(theme.success)(sym.toolDone)} ${chalk.hex(theme.text)(message)}\n`,
-  );
+  renderLine(`  ${chalk.hex(theme.success)('done')}  ${chalk.hex(theme.text)(message)}`);
 }
 
 export function renderWarning(message: string): void {
   const theme = getTheme();
-  process.stderr.write(
-    `  ${chalk.hex(theme.warning)('!')} ${chalk.hex(theme.warning)(message)}\n`,
-  );
+  renderLine(`  ${chalk.hex(theme.warning)('note')}  ${chalk.hex(theme.warning)(message)}`);
 }
 
 export function renderDim(message: string): void {
@@ -267,8 +282,16 @@ export function renderDim(message: string): void {
 export function renderStatus(parts: Record<string, string>): void {
   const theme = getTheme();
   const items = Object.entries(parts)
-    .map(([k, v]) => `${chalk.hex(theme.muted)(k)} ${chalk.hex(theme.dim)(v)}`)
-    .join(chalk.hex(theme.muted)(` ${sym.dot} `));
+    .map(([k, v]) => `${chalk.hex(theme.dim)(k)} ${chalk.hex(theme.text)(v)}`)
+    .join(` ${chalk.hex(theme.border)(sym.dot)} `);
+  if (isLayoutActive()) {
+    setFooterLines([
+      `  ${chalk.hex(theme.border)(rule(Math.min(process.stdout.columns || 80, 28), sym.thinRule))}`,
+      `  ${items}`,
+    ]);
+    renderLayout();
+    return;
+  }
   process.stderr.write(`\r\x1b[K  ${items}\n`);
 }
 

@@ -35,6 +35,14 @@ describe('glob', () => {
     expect(result).toContain('src/index.ts');
     expect(result).toContain('src/feature.ts');
   });
+
+  it('narrows the search root from literal path prefixes in the pattern', async () => {
+    const dir = await createWorkspace();
+    const result = await glob({ pattern: 'src/**/*.ts', path: dir });
+    expect(result).toContain(join(dir, 'src', 'index.ts'));
+    expect(result).toContain(join(dir, 'src', 'feature.ts'));
+    expect(result).not.toContain(join(dir, 'docs', 'notes.md'));
+  });
 });
 
 describe('grep', () => {

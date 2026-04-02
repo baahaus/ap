@@ -1,6 +1,9 @@
 import chalk from 'chalk';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isCommand, parseCommand } from './input.js';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { completeInput, getCompletionWindow, isCommand, parseCommand } from './input.js';
 import { themes, setTheme, getTheme, listThemes } from './themes.js';
 import { renderMarkdown } from './renderer.js';
 import { sym, dotLeader, rule, box } from './symbols.js';
@@ -34,6 +37,41 @@ describe('parseCommand', () => {
 
   it('trims whitespace around args', () => {
     expect(parseCommand('/team   spawn alpha')).toEqual({ name: 'team', args: 'spawn alpha' });
+  });
+});
+
+describe('completeInput', () => {
+  let tempDir: string | null = null;
+
+  afterEach(async () => {
+    if (tempDir) {
+      await rm(tempDir, { recursive: true, force: true });
+      tempDir = null;
+    }
+  });
+
+  it('completes slash commands from the provided command list', async () => {
+    const completions = await completeInput('/re', {
+      commands: ['/resume', '/help', '/theme'],
+    });
+
+    expect(completions).toContain('/resume');
+    expect(completions).not.toContain('/help');
+  });
+
+  it('completes relative paths from the current cwd', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'blush-tui-'));
+    await mkdir(join(tempDir, 'src'));
+    await writeFile(join(tempDir, 'src', 'index.ts'), 'export {};\n', 'utf-8');
+
+    const completions = await completeInput('read src/in', { cwd: tempDir });
+    expect(completions).toContain('read src/index.ts');
+  });
+
+  it('centers the completion window around the selected item when possible', () => {
+    expect(getCompletionWindow(10, 0, 5)).toEqual({ start: 0, end: 5 });
+    expect(getCompletionWindow(10, 4, 5)).toEqual({ start: 2, end: 7 });
+    expect(getCompletionWindow(10, 9, 5)).toEqual({ start: 5, end: 10 });
   });
 });
 

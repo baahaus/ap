@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { resolveProvider, type Message } from '@blush/ai';
-import { renderLine, getTheme, sym, deleteLine, moveCursorUp } from '@blush/tui';
+import { renderLine, getTheme, sym, deleteLine, moveCursorUp, isLayoutActive } from '@blush/tui';
 
 /** How many lines the last suggestion block took (0 = none shown) */
 let lastSuggestionLines = 0;
@@ -14,6 +14,10 @@ export function clearSuggestions(): void {
 }
 
 export function clearSuggestionsBelowCursor(linesBelowCursor: number): void {
+  if (isLayoutActive()) {
+    lastSuggestionLines = 0;
+    return;
+  }
   if (lastSuggestionLines > 0) {
     moveCursorUp(lastSuggestionLines + linesBelowCursor);
     for (let i = 0; i < lastSuggestionLines; i++) {

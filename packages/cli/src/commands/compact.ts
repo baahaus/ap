@@ -1,5 +1,6 @@
 import type { Provider, Message } from '@blush/ai';
 import { addEntry, type Session } from '@blush/core';
+import { renderDim, renderError } from '@blush/tui';
 
 /**
  * /compact [focus] -- Compress conversation with optional focus instructions.
@@ -17,7 +18,7 @@ export async function compact(
   const messages = getActiveMessages(session);
 
   if (messages.length < 4) {
-    console.error('Not enough messages to compact.');
+    renderError('Not enough messages to compact.');
     return;
   }
 
@@ -58,5 +59,5 @@ export async function compact(
   session.currentBranch = '';
   addEntry(session, summaryMessage);
 
-  console.error(`Compacted ${messages.length} messages into summary.`);
+  renderDim(`  Compacted ${messages.length} messages into summary.`);
 }

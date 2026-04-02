@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { getTheme } from './themes.js';
 import { sym } from './symbols.js';
+import { pause, prefersReducedMotion } from './motion.js';
 
 /**
  * Render a warm floating card overlay for /btw responses.
@@ -46,7 +47,35 @@ export function renderOverlay(content: string, title?: string): void {
 }
 
 export async function showOverlayAndWait(content: string, title?: string): Promise<void> {
-  renderOverlay(content, title);
+  const theme = getTheme();
+  const maxWidth = Math.min(process.stdout.columns || 80, 64);
+  const innerWidth = maxWidth - 4;
+  const headerLabel = title || 'btw';
+  const headerLen = maxWidth - headerLabel.length - 5;
+  const wrapped = wordWrap(content, innerWidth);
+  const lines = [
+    chalk.hex(theme.border)(
+      `  ${sym.boxTL}${sym.boxH} ${chalk.hex(theme.accent)(headerLabel)} ${sym.boxH.repeat(Math.max(1, headerLen))}${sym.boxTR}`,
+    ),
+    chalk.hex(theme.border)(`  ${sym.boxV}`) + ' '.repeat(innerWidth + 1) + chalk.hex(theme.border)(sym.boxV),
+    ...wrapped.map((line) => {
+      const padded = line.padEnd(innerWidth);
+      return chalk.hex(theme.border)(`  ${sym.boxV} `) + chalk.hex(theme.text)(padded) + chalk.hex(theme.border)(sym.boxV);
+    }),
+    chalk.hex(theme.border)(`  ${sym.boxV}`) + ' '.repeat(innerWidth + 1) + chalk.hex(theme.border)(sym.boxV),
+    chalk.hex(theme.border)(`  ${sym.boxBL}${sym.boxH.repeat(innerWidth + 1)}${sym.boxBR}`),
+    `  ${chalk.hex(theme.muted)('press any key to dismiss')}`,
+  ];
+
+  process.stderr.write('\n');
+  if (prefersReducedMotion()) {
+    process.stderr.write(lines.join('\n') + '\n');
+  } else {
+    for (const [index, line] of lines.entries()) {
+      process.stderr.write(line + '\n');
+      await pause(index < 2 ? 22 : 12);
+    }
+  }
 
   return new Promise((resolve) => {
     const wasRaw = process.stdin.isRaw;

@@ -21,7 +21,6 @@ import {
   renderToolEnd,
   renderError,
   renderDim,
-  renderPrompt,
   renderWelcome,
   renderGoodbye,
   renderStatus,
@@ -30,13 +29,47 @@ import {
   setTheme,
   getTheme,
   listThemes,
-  createSpinner,
+  activateLayout,
+  deactivateLayout,
+  isLayoutActive,
+  clearFooterLines,
+  renderLayout,
   sym,
 } from '@blush/tui';
-import { btw, compact, copy, showContext, showDiff, showSuggestions, clearSuggestionsBelowCursor, handleTeamCommand, showSkills, resolveModelSelection, showModelSelector } from './commands/index.js';
-import { prefixStreamChunk, summarizeToolInput } from './rendering.js';
+import {
+  btw,
+  compact,
+  copy,
+  showContext,
+  showDiff,
+  showSuggestions,
+  clearSuggestionsBelowCursor,
+  handleTeamCommand,
+  showSkills,
+  listSelectableModels,
+  resolveModelSelection,
+  showModelSelector,
+} from './commands/index.js';
+import { assistantPrefix, prefixStreamChunk, summarizeToolInput } from './rendering.js';
 
 const VERSION = '0.1.0';
+const SLASH_COMMANDS = [
+  '/btw',
+  '/compact',
+  '/branch',
+  '/context',
+  '/diff',
+  '/model',
+  '/resume',
+  '/team',
+  '/skills',
+  '/theme',
+  '/copy',
+  '/save',
+  '/help',
+  '/exit',
+];
+const TEAM_SUBCOMMANDS = ['spawn', 'msg', 'status', 'synthesize', 'review', 'pipeline', 'merge'];
 
 interface CliOptions {
   model: string;
@@ -73,6 +106,11 @@ function truncateMiddle(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   if (maxLength <= 1) return text.slice(0, maxLength);
   return text.slice(0, maxLength - 1) + '…';
+}
+
+function matchingCompletions(line: string, candidates: string[]): string[] {
+  const normalized = line.toLowerCase();
+  return candidates.filter((candidate) => candidate.toLowerCase().startsWith(normalized));
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -235,6 +273,8 @@ function printHelp(): void {
   renderLine('');
   renderHelp([
     ['  Enter', 'Send message'],
+    ['  Tab', 'Complete commands, models, sessions, and paths'],
+    ['  Tab Tab', 'Show all matching completions'],
     ['  !command', 'Run shell command directly'],
     ['  Ctrl+C', 'Exit'],
   ]);
@@ -285,7 +325,7 @@ function renderResumePreview(messages: Message[]): void {
   for (const message of shown) {
     const prefix = message.role === 'user'
       ? `  ${chalk.hex(theme.prompt)(sym.prompt)} `
-      : `  ${chalk.hex(theme.muted)(sym.input)} `;
+      : `  ${chalk.hex(theme.border)(sym.boxV)} `;
     const content = message.role === 'assistant'
       ? renderMarkdown(message.text)
       : message.text;
@@ -337,7 +377,6 @@ export async function run(): Promise<void> {
 
   // Lazy agent creation
   let agent: Awaited<ReturnType<typeof createAgent>> | null = null;
-  const spinner = createSpinner();
   const quietStreamOutput = Boolean(opts.print && opts.json);
   let responseStarted = false;
   let assistantLineStart = true;
@@ -351,9 +390,13 @@ export async function run(): Promise<void> {
   }
 
   function renderAssistantChunk(text: string): void {
+    const theme = getTheme();
     const { output, lineStart } = prefixStreamChunk(
       text,
-      `  ${chalk.hex(getTheme().muted)(sym.input)} `,
+      assistantPrefix(
+        `  ${chalk.hex(theme.border)(sym.boxV)} `,
+        `  ${chalk.hex(theme.border)(sym.boxV)} `,
+      ),
       assistantLineStart,
     );
     assistantLineStart = lineStart;
@@ -515,11 +558,12 @@ export async function run(): Promise<void> {
   }
 
   // Interactive mode -- show welcome banner
+  activateLayout();
   const projectLabel = basename(cwd) || cwd;
   const sessionLabel = existingSession
     ? `${existingSession.entries.length} msgs resumed`
     : 'new session';
-  renderWelcome(VERSION, currentModel, projectLabel, sessionLabel);
+  await renderWelcome(VERSION, currentModel, projectLabel, sessionLabel);
   if (existingSession) {
     renderResumePreview(getActiveMessages(existingSession));
   }
@@ -528,7 +572,42 @@ export async function run(): Promise<void> {
     renderDim(`  ${sym.toolDone} ${skillCount} skill(s) loaded`);
   }
 
-  const input = createInput();
+  const input = createInput({
+    cwd,
+    commands: SLASH_COMMANDS,
+    complete: async (line) => {
+      if (line.startsWith('/theme ')) {
+        return matchingCompletions(
+          line,
+          listThemes().map((themeName) => `/theme ${themeName}`),
+        );
+      }
+
+      if (line.startsWith('/model ')) {
+        return matchingCompletions(
+          line,
+          listSelectableModels().map((model) => `/model ${model.name}`),
+        );
+      }
+
+      if (line.startsWith('/resume ')) {
+        const sessions = await listSessionSummaries(cwd);
+        return matchingCompletions(
+          line,
+          sessions.map((session) => `/resume ${session.id}`),
+        );
+      }
+
+      if (line === '/team' || line.startsWith('/team ')) {
+        return matchingCompletions(
+          line,
+          TEAM_SUBCOMMANDS.map((subcommand) => `/team ${subcommand}`),
+        );
+      }
+
+      return [];
+    },
+  });
   const theme = getTheme();
 
   // Graceful shutdown
@@ -541,6 +620,7 @@ export async function run(): Promise<void> {
       renderGoodbye();
     }
     input.close();
+    deactivateLayout();
     process.exit(0);
   });
 
@@ -625,6 +705,7 @@ export async function run(): Promise<void> {
           renderGoodbye();
         }
         input.close();
+        deactivateLayout();
         process.exit(0);
 
       case 'btw': {
@@ -711,15 +792,22 @@ export async function run(): Promise<void> {
 
   // REPL loop
   while (true) {
-    renderPrompt(opts.color);
-
     try {
-      const line = await input.getLine('');
+      const promptColor = opts.color ? chalk.hex(opts.color) : chalk.hex(getTheme().prompt);
+      if (!quietStreamOutput && !isLayoutActive()) {
+        renderText('\n');
+      }
+      const line = await input.getLine(promptColor(`${sym.prompt} `));
       const trimmed = line.trim();
 
       clearSuggestionsBelowCursor(1);
 
       if (!trimmed) continue;
+
+      if (isLayoutActive()) {
+        clearFooterLines();
+        renderLayout();
+      }
 
       // ! prefix: run bash command directly
       if (trimmed.startsWith('!')) {

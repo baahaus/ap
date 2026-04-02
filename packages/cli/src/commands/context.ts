@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { Message } from '@blush/ai';
+import { renderLine } from '@blush/tui';
 
 /**
  * /context -- Visualize context window usage.
@@ -67,14 +68,18 @@ export function showContext(messages: Message[], model: string): void {
     bar += seg.color(' '.repeat(chars));
   }
 
-  console.error(`\n${bar}\n`);
+  renderLine('');
+  renderLine(bar);
+  renderLine('');
 
   for (const seg of segments) {
     const indicator = seg.color('  ');
-    console.error(`  ${indicator} ${seg.label}: ~${seg.tokens.toLocaleString()} tokens (${pct(seg.tokens)}%)`);
+    renderLine(`  ${indicator} ${seg.label}: ~${seg.tokens.toLocaleString()} tokens (${pct(seg.tokens)}%)`);
   }
 
-  console.error(`\n  Total: ~${totalUsed.toLocaleString()} / ${maxTokens.toLocaleString()} tokens (${pct(totalUsed)}% used)\n`);
+  renderLine('');
+  renderLine(`  Total: ~${totalUsed.toLocaleString()} / ${maxTokens.toLocaleString()} tokens (${pct(totalUsed)}% used)`);
+  renderLine('');
 }
 
 function getModelContext(model: string): number {

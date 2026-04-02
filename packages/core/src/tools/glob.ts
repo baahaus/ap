@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { existsSync } from 'node:fs';
-import { globToRegex, resolveSearchRoot, toPosixRelative, walkFiles } from './search-utils.js';
+import { globToRegex, inferGlobSearchScope, toPosixRelative, walkFiles } from './search-utils.js';
 
 export const GlobParams = Type.Object({
   pattern: Type.String({ description: 'Glob pattern to match, e.g. **/*.ts or package.json' }),
@@ -12,13 +12,14 @@ export type GlobParams = Static<typeof GlobParams>;
 
 export async function glob(params: GlobParams): Promise<string> {
   const { pattern, path, limit = 200 } = params;
-  const root = resolveSearchRoot(path);
+  const scope = inferGlobSearchScope(pattern, path);
+  const root = scope.root;
 
   if (!existsSync(root)) {
     return `Error: Search path not found: ${root}`;
   }
 
-  const matcher = globToRegex(pattern);
+  const matcher = globToRegex(scope.pattern);
   const files = await walkFiles(root);
   const matches = files
     .map((file) => ({ file, rel: toPosixRelative(root, file) }))

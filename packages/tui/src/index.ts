@@ -24,12 +24,23 @@ export {
 } from './renderer.js';
 
 export {
+  activateLayout,
+  deactivateLayout,
+  isLayoutActive,
+  setComposerState,
+  renderLayout,
+  commitInputToTranscript,
+  clearFooterLines,
+} from './layout.js';
+
+export {
   showOverlayAndWait,
   renderOverlay,
 } from './overlay.js';
 
 export {
   createInput,
+  completeInput,
   isCommand,
   parseCommand,
 } from './input.js';
