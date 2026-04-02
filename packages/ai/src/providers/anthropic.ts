@@ -11,27 +11,45 @@ import type {
 import { getApiKey } from '../config.js';
 import { getAnthropicAuthHeaders } from '../auth.js';
 
-async function fetchWithRetry(
+const FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
+
+/**
+ * Fetch with rate limit handling.
+ * On 429: retry once after a short wait, then fall back to haiku.
+ */
+async function fetchWithFallback(
   url: string,
   init: RequestInit,
-  maxRetries = 3,
+  requestBody: Record<string, unknown>,
 ): Promise<Response> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const response = await fetch(url, init);
+  const response = await fetch(url, init);
 
-    if (response.status === 429 && attempt < maxRetries) {
-      const retryAfter = response.headers.get('retry-after');
-      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : (attempt + 1) * 2000;
-      process.stderr.write(`Rate limited, retrying in ${Math.round(waitMs / 1000)}s...\n`);
-      await new Promise((r) => setTimeout(r, waitMs));
-      continue;
+  if (response.status === 429) {
+    const originalModel = requestBody.model as string;
+
+    // One retry after 2s
+    const retryAfter = response.headers.get('retry-after');
+    const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
+    process.stderr.write(`Rate limited on ${originalModel}, retrying in ${Math.round(waitMs / 1000)}s...\n`);
+    await new Promise((r) => setTimeout(r, waitMs));
+
+    const retry = await fetch(url, init);
+    if (retry.ok) return retry;
+
+    // If still 429 and not already haiku, fall back
+    if (retry.status === 429 && !originalModel.includes('haiku')) {
+      process.stderr.write(`${originalModel} rate limited. Falling back to ${FALLBACK_MODEL}\n`);
+      const fallbackBody = { ...requestBody, model: FALLBACK_MODEL };
+      return fetch(url, {
+        ...init,
+        body: JSON.stringify(fallbackBody),
+      });
     }
 
-    return response;
+    return retry;
   }
 
-  // Shouldn't reach here, but TypeScript wants it
-  return fetch(url, init);
+  return response;
 }
 
 function toAnthropicMessages(messages: Message[]): unknown[] {
@@ -85,15 +103,19 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
 
-    const response = await fetchWithRetry(`${baseUrl}/v1/messages${urlSuffix}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...auth.headers,
-        'anthropic-version': '2023-06-01',
+    const response = await fetchWithFallback(
+      `${baseUrl}/v1/messages${urlSuffix}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.headers,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      body,
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -177,15 +199,19 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
 
-    const response = await fetchWithRetry(`${baseUrl}/v1/messages${urlSuffix}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...auth.headers,
-        'anthropic-version': '2023-06-01',
+    const response = await fetchWithFallback(
+      `${baseUrl}/v1/messages${urlSuffix}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.headers,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      body,
+    );
 
     if (!response.ok) {
       const error = await response.text();

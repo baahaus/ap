@@ -71,7 +71,7 @@ export function getAnthropicAuthHeaders(apiKey?: string): {
       headers: {
         'Authorization': `Bearer ${oauth.accessToken}`,
         'anthropic-beta': 'claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-scope-2026-01-05',
-        'user-agent': 'claude-cli/2.1.74 (external, cli)',
+        'user-agent': 'claude-cli/2.1.90 (external, cli)',
         'x-app': 'cli',
       },
       queryParams: 'beta=true',
