@@ -9,6 +9,7 @@ import type {
   TokenUsage,
 } from '../types.js';
 import { getApiKey } from '../config.js';
+import { getAnthropicAuthHeaders } from '../auth.js';
 
 function toAnthropicMessages(messages: Message[]): unknown[] {
   return messages.map((msg) => {
@@ -44,17 +45,9 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
   const apiKey = config.apiKey || getApiKey('anthropic');
   const baseUrl = config.baseUrl || 'https://api.anthropic.com';
 
-  if (!apiKey) {
-    throw new Error(
-      'Anthropic API key required. Set it via:\n' +
-      '  1. ANTHROPIC_API_KEY environment variable\n' +
-      '  2. ~/.blush/config.json: { "anthropic_api_key": "sk-..." }\n' +
-      '  3. .env file in current directory'
-    );
-  }
-
-  // Assert non-undefined after guard
-  const key: string = apiKey;
+  // Get auth -- tries OAuth (Claude subscription) first, then API key
+  const auth = getAnthropicAuthHeaders(apiKey);
+  const urlSuffix = auth.queryParams ? `?${auth.queryParams}` : '';
 
   async function* stream(request: CompletionRequest): AsyncIterable<StreamEvent> {
     const body: Record<string, unknown> = {
@@ -69,11 +62,11 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
 
-    const response = await fetch(`${baseUrl}/v1/messages`, {
+    const response = await fetch(`${baseUrl}/v1/messages${urlSuffix}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': key,
+        ...auth.headers,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(body),
@@ -161,11 +154,11 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     if (request.temperature !== undefined) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
 
-    const response = await fetch(`${baseUrl}/v1/messages`, {
+    const response = await fetch(`${baseUrl}/v1/messages${urlSuffix}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': key,
+        ...auth.headers,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(body),
