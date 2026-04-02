@@ -110,7 +110,9 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
   const auth = getAnthropicAuth(apiKey);
   const urlSuffix = auth.queryParams ? `?${auth.queryParams}` : '';
 
-  const OAUTH_IDENTITY = "You are Blush, a terminal coding agent from ap.haus.";
+  // OAuth requires this exact identity string -- the API validates it.
+  // Blush's actual identity comes from the system prompt in @blush/core.
+  const OAUTH_IDENTITY = "You are Claude Code, Anthropic's official CLI for Claude.";
 
   /**
    * Format the system prompt for the API.

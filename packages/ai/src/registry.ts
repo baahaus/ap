@@ -1,6 +1,7 @@
 import type { Provider, ProviderConfig, TokenUsage } from './types.js';
 import { createAnthropicProvider } from './providers/anthropic.js';
 import { createOpenAIProvider } from './providers/openai.js';
+import { createCodexProvider } from './providers/codex.js';
 import { loadConfig } from './config.js';
 
 type ProviderFactory = (config: ProviderConfig) => Provider;
@@ -8,6 +9,9 @@ type ProviderFactory = (config: ProviderConfig) => Provider;
 const factories = new Map<string, ProviderFactory>([
   ['anthropic', createAnthropicProvider],
   ['openai', createOpenAIProvider],
+  // ChatGPT subscription via Codex OAuth (uses ~/.codex/auth.json)
+  ['codex', createCodexProvider],
+  ['chatgpt', createCodexProvider],
   // OpenAI-compatible endpoints (Ollama, vLLM, LM Studio, etc.)
   // Use the OpenAI provider with custom baseUrl
   ['ollama', (config) => createOpenAIProvider({
@@ -73,7 +77,17 @@ export function resolveProvider(model: string): { provider: Provider; model: str
   if (model.startsWith('claude')) {
     return { provider: getProvider('anthropic'), model };
   }
-  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3')) {
+  // GPT-5.x models → Codex (ChatGPT subscription via Responses API)
+  // Match both "gpt-5" and "gpt5" (with or without dash)
+  if (model.startsWith('gpt-5') || model.startsWith('gpt5')) {
+    try {
+      return { provider: getProvider('codex'), model };
+    } catch {
+      return { provider: getProvider('openai'), model };
+    }
+  }
+  // GPT-4 and older → OpenAI API key
+  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4')) {
     return { provider: getProvider('openai'), model };
   }
 
