@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { getTheme } from './themes.js';
 import { sym } from './symbols.js';
+import { isLayoutActive, setFooterLines, clearFooterLines } from './layout.js';
 
 export interface Spinner {
   start: (label: string) => void;
@@ -112,7 +113,12 @@ export function createSpinner(): Spinner {
     }
 
     const line = `  ${chalk.hex(color)(glyph)} ${chalk.hex(theme.muted)(currentLabel)}`;
-    process.stderr.write(`\r\x1b[K${line}`);
+    if (isLayoutActive()) {
+      // Render through layout footer -- gradient timer paints it
+      setFooterLines([line]);
+    } else {
+      process.stderr.write(`\r\x1b[K${line}`);
+    }
     frame++;
     timeout = setTimeout(render, nextDelay());
   }
@@ -165,7 +171,11 @@ export function createSpinner(): Spinner {
       clearTimeout(timeout);
       timeout = null;
     }
-    process.stderr.write('\r\x1b[K');
+    if (isLayoutActive()) {
+      clearFooterLines();
+    } else {
+      process.stderr.write('\r\x1b[K');
+    }
   }
 
   return { start, update, impulse, succeed, fail, stop };
