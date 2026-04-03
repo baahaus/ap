@@ -1,6 +1,6 @@
 {
   "name": "@blush/tui",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Terminal UI primitives",
   "type": "module",
   "main": "dist/index.js",

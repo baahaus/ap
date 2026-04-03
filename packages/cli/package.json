@@ -1,6 +1,6 @@
 {
   "name": "@blush/cli",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Blush CLI -- team coding agent from ap.haus",
   "type": "module",
   "bin": {

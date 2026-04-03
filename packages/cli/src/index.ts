@@ -62,7 +62,7 @@ import {
 } from './commands/index.js';
 import { assistantPrefix, prefixStreamChunk, summarizeToolInput } from './rendering.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.2';
 const SLASH_COMMANDS = [
   '/btw',
   '/compact',
