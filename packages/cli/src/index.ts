@@ -80,6 +80,7 @@ const SLASH_COMMANDS = [
   '/skills',
   '/theme',
   '/copy',
+  '/loop',
   '/save',
   '/help',
   '/exit',
@@ -300,6 +301,8 @@ function printHelp(): void {
     ['  /skills', 'List installed skills'],
     ['  /theme [name]', 'Set or show color theme'],
     ['  /copy [N]', 'Copy Nth response to clipboard'],
+    ['  /loop <interval> <prompt|/cmd>', 'Run on a timer (e.g. /loop 5m run tests)'],
+    ['  /loop stop', 'Stop the active loop'],
     ['  /help', 'Show this help'],
     ['  /exit', 'Exit'],
   ]);
@@ -423,6 +426,10 @@ export async function run(): Promise<void> {
   let totalToolCalls = 0;
   const messageQueue: string[] = [];
   let isProcessing = false;
+  let loopTimer: ReturnType<typeof setInterval> | null = null;
+  let loopCommand = '';
+  let loopIntervalMs = 0;
+  let loopCount = 0;
   const spinner = createSpinner();
   let abortController: AbortController | null = null;
   let titleGenerated = Boolean(existingSession?.title);
@@ -824,7 +831,7 @@ export async function run(): Promise<void> {
   }
 
   // Clean up spinner on any exit path
-  process.on('exit', () => spinner.stop());
+  process.on('exit', () => { spinner.stop(); if (loopTimer) clearInterval(loopTimer); });
   process.on('uncaughtException', (err) => {
     spinner.stop();
     renderError(err.message);
@@ -1117,6 +1124,105 @@ export async function run(): Promise<void> {
 
       case 'resume': {
         await resumeSession(args);
+        return true;
+      }
+
+      case 'loop': {
+        const theme = getTheme();
+
+        // /loop stop
+        if (args.trim() === 'stop') {
+          if (loopTimer) {
+            clearInterval(loopTimer);
+            loopTimer = null;
+            renderLine(`  ${chalk.hex(theme.success)(sym.toolDone)} ${chalk.hex(theme.dim)(`loop stopped after ${loopCount} runs`)}`);
+            loopCount = 0;
+          } else {
+            renderDim('  no active loop');
+          }
+          return true;
+        }
+
+        // /loop (status)
+        if (!args.trim()) {
+          if (loopTimer) {
+            const intervalLabel = loopIntervalMs >= 60000
+              ? `${Math.round(loopIntervalMs / 60000)}m`
+              : `${Math.round(loopIntervalMs / 1000)}s`;
+            renderLine(`  ${chalk.hex(theme.accent)(sym.toolRun)} ${chalk.hex(theme.text)('loop active')}  ${chalk.hex(theme.dim)(`every ${intervalLabel}`)}  ${chalk.hex(theme.muted)(`${loopCount} runs`)}`);
+            renderLine(`  ${chalk.hex(theme.muted)('command:')} ${chalk.hex(theme.dim)(loopCommand)}`);
+          } else {
+            renderDim('  no active loop. Usage: /loop <interval> <prompt or /command>');
+          }
+          return true;
+        }
+
+        // /loop <interval> <command> -- start a new loop
+        // Kill existing loop first
+        if (loopTimer) {
+          clearInterval(loopTimer);
+          loopTimer = null;
+          loopCount = 0;
+        }
+
+        // Parse interval: 30s, 5m, 1h
+        const intervalMatch = args.match(/^(\d+)(s|m|h)\s+(.+)$/);
+        if (!intervalMatch) {
+          renderError('Usage: /loop <interval> <prompt or /command>\n  Examples: /loop 5m run tests, /loop 30s /compact');
+          return true;
+        }
+
+        const [, numStr, unit, cmd] = intervalMatch;
+        const num = parseInt(numStr, 10);
+        const multiplier = unit === 'h' ? 3600000 : unit === 'm' ? 60000 : 1000;
+        loopIntervalMs = num * multiplier;
+        loopCommand = cmd.trim();
+        loopCount = 0;
+
+        if (loopIntervalMs < 5000) {
+          renderError('Minimum interval is 5s');
+          return true;
+        }
+
+        const intervalLabel = loopIntervalMs >= 60000
+          ? `${Math.round(loopIntervalMs / 60000)}m`
+          : `${Math.round(loopIntervalMs / 1000)}s`;
+
+        renderLine(`  ${chalk.hex(theme.accent)(sym.toolRun)} ${chalk.hex(theme.text)('loop started')}  ${chalk.hex(theme.dim)(`every ${intervalLabel}`)}  ${chalk.hex(theme.muted)(loopCommand)}`);
+
+        loopTimer = setInterval(async () => {
+          loopCount++;
+          const theme2 = getTheme();
+          renderLine(`\n  ${chalk.hex(theme2.muted)(`${sym.thinRule.repeat(3)} loop #${loopCount} ${sym.thinRule.repeat(20)}`)}`);
+
+          if (loopCommand.startsWith('/')) {
+            // Execute as slash command
+            const { name: cmdName, args: cmdArgs } = parseCommand(loopCommand);
+            await handleCommand(cmdName, cmdArgs);
+          } else {
+            // Execute as agent prompt
+            try {
+              const a = await getAgent();
+              isProcessing = true;
+              input.setQueueMode((queuedLine) => {
+                messageQueue.push(queuedLine);
+                renderDim(`  queued (${messageQueue.length} pending)`);
+              });
+              await sendTurnWithStatus(a, loopCommand);
+              while (messageQueue.length > 0) {
+                const queued = messageQueue.shift()!;
+                await sendTurnWithStatus(a, queued);
+              }
+              input.setQueueMode(null);
+              isProcessing = false;
+            } catch (err) {
+              input.setQueueMode(null);
+              isProcessing = false;
+              renderError((err as Error).message);
+            }
+          }
+        }, loopIntervalMs);
+
         return true;
       }
 
