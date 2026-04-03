@@ -7,7 +7,7 @@ import { grepTool } from './grep.js';
 import { todoTool } from './todo.js';
 import { webFetchTool } from './web-fetch.js';
 import { webSearchTool } from './web-search.js';
-import type { ToolDefinition } from '@blush/ai';
+import type { ToolDefinition } from '@blushagent/ai';
 
 export { readTool, writeTool, editTool, bashTool, globTool, grepTool, todoTool, webFetchTool, webSearchTool };
 export { read, type ReadParams } from './read.js';

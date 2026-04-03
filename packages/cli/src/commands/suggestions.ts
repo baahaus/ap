@@ -4,8 +4,8 @@ import {
   type ContentBlock,
   type Message,
   type Provider,
-} from '@blush/ai';
-import { renderLine, getTheme, sym, deleteLine, moveCursorUp, isLayoutActive } from '@blush/tui';
+} from '@blushagent/ai';
+import { renderLine, getTheme, sym, deleteLine, moveCursorUp, isLayoutActive } from '@blushagent/tui';
 
 /** How many lines the last suggestion block took (0 = none shown) */
 let lastSuggestionLines = 0;

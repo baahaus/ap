@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { getTheme, renderLine, sym } from '@blush/tui';
-import { loadConfig, updateConfig } from '@blush/ai';
+import { getTheme, renderLine, sym } from '@blushagent/tui';
+import { loadConfig, updateConfig } from '@blushagent/ai';
 
 export interface SelectableModel {
   name: string;

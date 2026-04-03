@@ -8,7 +8,7 @@ describe('CLI argument parsing', () => {
 
   it('parseCommand handles /team subcommands', async () => {
     // Import from tui since that's where parseCommand lives
-    const { parseCommand } = await import('@blush/tui');
+    const { parseCommand } = await import('@blushagent/tui');
 
     expect(parseCommand('/team spawn alpha')).toEqual({
       name: 'team',
@@ -32,7 +32,7 @@ describe('CLI argument parsing', () => {
   });
 
   it('parseCommand handles all slash commands', async () => {
-    const { parseCommand } = await import('@blush/tui');
+    const { parseCommand } = await import('@blushagent/tui');
 
     const commands = [
       ['/btw what is this', 'btw', 'what is this'],
@@ -58,7 +58,7 @@ describe('CLI argument parsing', () => {
   });
 
   it('isCommand identifies commands correctly', async () => {
-    const { isCommand } = await import('@blush/tui');
+    const { isCommand } = await import('@blushagent/tui');
 
     expect(isCommand('/help')).toBe(true);
     expect(isCommand('/team spawn alpha')).toBe(true);
@@ -75,7 +75,7 @@ describe('CLI version and branding', () => {
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const pkg = JSON.parse(await readFile(join(__dirname, '..', 'package.json'), 'utf-8'));
-    expect(pkg.name).toBe('@blush/cli');
+    expect(pkg.name).toBe('@blushagent/cli');
   });
 
   it('bin entry is blush', async () => {
@@ -152,7 +152,7 @@ describe('sdk exports', () => {
 
 describe('team command imports', () => {
   it('exports all team functions', async () => {
-    const team = await import('@blush/team');
+    const team = await import('@blushagent/team');
     expect(typeof team.createTeamSession).toBe('function');
     expect(typeof team.spawnPeer).toBe('function');
     expect(typeof team.messagePeer).toBe('function');

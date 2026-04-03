@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import type { Message } from '@blush/ai';
-import { renderLine } from '@blush/tui';
+import type { Message } from '@blushagent/ai';
+import { renderLine } from '@blushagent/tui';
 
 /**
  * /context -- Visualize context window usage.

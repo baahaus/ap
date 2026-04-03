@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
-import type { Message } from '@blush/ai';
+import type { Message } from '@blushagent/ai';
 
 const SESSIONS_DIR = join(homedir(), '.blush', 'sessions');
 

@@ -1,5 +1,5 @@
 {
-  "name": "@blush/cli",
+  "name": "@blushagent/cli",
   "version": "0.1.2",
   "description": "Blush CLI -- team coding agent from ap.haus",
   "type": "module",
@@ -25,10 +25,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@blush/ai": "workspace:*",
-    "@blush/core": "workspace:*",
-    "@blush/team": "workspace:*",
-    "@blush/tui": "workspace:*",
+    "@blushagent/ai": "workspace:*",
+    "@blushagent/core": "workspace:*",
+    "@blushagent/team": "workspace:*",
+    "@blushagent/tui": "workspace:*",
     "@sinclair/typebox": "^0.34.0",
     "chalk": "^5.3.0"
   },

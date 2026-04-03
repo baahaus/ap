@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { SkillRegistry } from '@blush/core';
-import { renderLine } from '@blush/tui';
+import { SkillRegistry } from '@blushagent/core';
+import { renderLine } from '@blushagent/tui';
 
 export function showSkills(registry: SkillRegistry): void {
   const skills = registry.list();

@@ -1,5 +1,5 @@
 {
-  "name": "@blush/tui",
+  "name": "@blushagent/tui",
   "version": "0.1.2",
   "description": "Terminal UI primitives",
   "type": "module",

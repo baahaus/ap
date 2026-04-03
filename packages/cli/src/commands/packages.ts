@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { promisify } from 'node:util';
-import { renderLine, renderError } from '@blush/tui';
+import { renderLine, renderError } from '@blushagent/tui';
 
 const execFileAsync = promisify(execFile);
 const BLUSH_DIR = join(homedir(), '.blush');

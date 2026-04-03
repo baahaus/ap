@@ -18,7 +18,7 @@ vi.mock('node:child_process', () => ({
   execFile: execFileMock,
 }));
 
-vi.mock('@blush/tui', () => ({
+vi.mock('@blushagent/tui', () => ({
   renderLine: renderLineMock,
   renderError: renderErrorMock,
 }));

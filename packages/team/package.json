@@ -1,5 +1,5 @@
 {
-  "name": "@blush/team",
+  "name": "@blushagent/team",
   "version": "0.1.2",
   "description": "Multi-agent coordination -- peer agents, mailboxes, task queues",
   "type": "module",
@@ -18,8 +18,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@blush/ai": "workspace:*",
-    "@blush/core": "workspace:*",
+    "@blushagent/ai": "workspace:*",
+    "@blushagent/core": "workspace:*",
     "@sinclair/typebox": "^0.34.0"
   },
   "devDependencies": {

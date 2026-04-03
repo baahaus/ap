@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { execSync } from 'node:child_process';
-import { renderLine } from '@blush/tui';
+import { renderLine } from '@blushagent/tui';
 
 /**
  * /diff -- Show uncommitted git changes with color.

@@ -2,7 +2,7 @@
  * SDK Mode -- Programmatic API for embedding Blush in other tools.
  *
  * Usage:
- *   import { createBlushSession } from '@blush/cli/sdk';
+ *   import { createBlushSession } from '@blushagent/cli/sdk';
  *
  *   const session = await createBlushSession({
  *     model: 'claude-sonnet-4-20250514',
@@ -15,8 +15,8 @@
  *   session.close();
  */
 
-import { resolveProvider, type StreamEvent, type TokenUsage } from '@blush/ai';
-import { createAgent, saveSession, type Agent } from '@blush/core';
+import { resolveProvider, type StreamEvent, type TokenUsage } from '@blushagent/ai';
+import { createAgent, saveSession, type Agent } from '@blushagent/core';
 
 export interface SdkConfig {
   model?: string;

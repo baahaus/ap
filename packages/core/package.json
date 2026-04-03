@@ -1,5 +1,5 @@
 {
-  "name": "@blush/core",
+  "name": "@blushagent/core",
   "version": "0.1.2",
   "description": "Agent loop, tools, and state management",
   "type": "module",
@@ -18,7 +18,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@blush/ai": "workspace:*",
+    "@blushagent/ai": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@sinclair/typebox": "^0.34.0"
   },

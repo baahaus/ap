@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import type { ToolDefinition } from '@blush/ai';
+import type { ToolDefinition } from '@blushagent/ai';
 
 const GLOBAL_EXT_DIR = join(homedir(), '.blush', 'extensions');
 

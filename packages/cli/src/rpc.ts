@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline';
-import { resolveProvider, type StreamEvent, type Message } from '@blush/ai';
-import { createAgent, saveSession } from '@blush/core';
+import { resolveProvider, type StreamEvent, type Message } from '@blushagent/ai';
+import { createAgent, saveSession } from '@blushagent/core';
 
 /**
  * RPC Mode -- JSON over stdin/stdout (LF-delimited JSONL).

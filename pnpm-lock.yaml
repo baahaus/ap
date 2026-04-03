@@ -36,16 +36,16 @@ importers:
 
   packages/cli:
     dependencies:
-      '@blush/ai':
+      '@blushagent/ai':
         specifier: workspace:*
         version: link:../ai
-      '@blush/core':
+      '@blushagent/core':
         specifier: workspace:*
         version: link:../core
-      '@blush/team':
+      '@blushagent/team':
         specifier: workspace:*
         version: link:../team
-      '@blush/tui':
+      '@blushagent/tui':
         specifier: workspace:*
         version: link:../tui
       '@sinclair/typebox':
@@ -67,7 +67,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@blush/ai':
+      '@blushagent/ai':
         specifier: workspace:*
         version: link:../ai
       '@modelcontextprotocol/sdk':
@@ -89,10 +89,10 @@ importers:
 
   packages/team:
     dependencies:
-      '@blush/ai':
+      '@blushagent/ai':
         specifier: workspace:*
         version: link:../ai
-      '@blush/core':
+      '@blushagent/core':
         specifier: workspace:*
         version: link:../core
       '@sinclair/typebox':

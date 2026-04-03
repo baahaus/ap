@@ -1,6 +1,6 @@
-import type { Provider, Message } from '@blush/ai';
-import { addEntry, type Session } from '@blush/core';
-import { renderDim, renderLine, renderError, getTheme, sym } from '@blush/tui';
+import type { Provider, Message } from '@blushagent/ai';
+import { addEntry, type Session } from '@blushagent/core';
+import { renderDim, renderLine, renderError, getTheme, sym } from '@blushagent/tui';
 import chalk from 'chalk';
 
 /**
@@ -15,7 +15,7 @@ export async function compact(
   model: string,
   focus?: string,
 ): Promise<void> {
-  const { getActiveMessages } = await import('@blush/core');
+  const { getActiveMessages } = await import('@blushagent/core');
   const messages = getActiveMessages(session);
 
   if (messages.length < 4) {

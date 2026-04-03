@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { basename } from 'node:path';
-import { loadConfig, resolveProvider, updateConfig, estimateCost, generateSessionTitle, type Message, type StreamEvent } from '@blush/ai';
+import { loadConfig, resolveProvider, updateConfig, estimateCost, generateSessionTitle, type Message, type StreamEvent } from '@blushagent/ai';
 import {
   createAgent,
   saveSession,
@@ -13,7 +13,7 @@ import {
   SkillRegistry,
   type SessionSummary,
   type MCPConnection,
-} from '@blush/core';
+} from '@blushagent/core';
 import {
   createInput,
   isCommand,
@@ -45,7 +45,7 @@ import {
   resetLayout,
   sym,
   StreamMarkdown,
-} from '@blush/tui';
+} from '@blushagent/tui';
 import {
   btw,
   compact,
@@ -751,7 +751,7 @@ export async function run(): Promise<void> {
   await renderWelcome(VERSION, currentModel, projectLabel, sessionLabel);
 
   // Start the breathing gradient animation
-  const { startGradientBreathing, stopGradientBreathing } = await import('@blush/tui');
+  const { startGradientBreathing, stopGradientBreathing } = await import('@blushagent/tui');
   startGradientBreathing(process.stdout.columns || 80);
 
   if (existingSession) {
@@ -927,7 +927,7 @@ export async function run(): Promise<void> {
 
       case 'theme': {
         if (!args) {
-          const { themes } = await import('@blush/tui');
+          const { themes } = await import('@blushagent/tui');
           const current = getTheme();
           renderLine('');
           renderLine(`  ${chalk.hex(current.text).bold('THEMES')}`);
@@ -1446,7 +1446,7 @@ export async function run(): Promise<void> {
               renderLine(chalk.hex(getTheme().dim)(output.trimEnd()));
             }
             if (agent !== null) {
-              const { addEntry } = await import('@blush/core');
+              const { addEntry } = await import('@blushagent/core');
               addEntry(agent!.session, {
                 role: 'user',
                 content: `[Shell command: ${cmd}]\n${output}`,

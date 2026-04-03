@@ -4,8 +4,8 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { createInterface } from 'node:readline';
-import { DEFAULT_ANTHROPIC_MODEL } from '@blush/ai';
-import { renderLine } from '@blush/tui';
+import { DEFAULT_ANTHROPIC_MODEL } from '@blushagent/ai';
+import { renderLine } from '@blushagent/tui';
 
 const BLUSH_DIR = join(homedir(), '.blush');
 

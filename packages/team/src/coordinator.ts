@@ -1,5 +1,5 @@
-import type { Provider } from '@blush/ai';
-import { createAgent, type Agent } from '@blush/core';
+import type { Provider } from '@blushagent/ai';
+import { createAgent, type Agent } from '@blushagent/core';
 import { createWorktree, mergeWorktree, type Worktree } from './worktree.js';
 import { sendMessage, readMessages, markRead } from './mailbox.js';
 import {

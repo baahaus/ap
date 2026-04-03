@@ -1,5 +1,5 @@
-import type { Provider, Message } from '@blush/ai';
-import { showOverlayAndWait } from '@blush/tui';
+import type { Provider, Message } from '@blushagent/ai';
+import { showOverlayAndWait } from '@blushagent/tui';
 
 /**
  * /btw -- Ephemeral question.

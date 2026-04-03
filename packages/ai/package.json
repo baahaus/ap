@@ -1,5 +1,5 @@
 {
-  "name": "@blush/ai",
+  "name": "@blushagent/ai",
   "version": "0.1.2",
   "description": "Multi-provider LLM abstraction layer",
   "type": "module",
