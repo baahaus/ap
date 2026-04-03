@@ -1430,6 +1430,9 @@ export async function run(): Promise<void> {
 
       if (!trimmed) continue;
 
+      // Stop the welcome gradient animation on first interaction
+      stopGradientBreathing();
+
       if (isLayoutActive()) {
         clearFooterLines();
         renderLayout();
