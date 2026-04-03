@@ -130,12 +130,11 @@ export function startGradientBreathing(width: number): void {
     gradientPhase = (gradientPhase + 0.012) % 1.0;
     const theme = getTheme();
     const rows = animatedGradientBlock(w, theme.border, theme.prompt, gradientPhase);
-    // Write all rows at the top of the screen
-    process.stderr.write('\x1b[s'); // save cursor
+    process.stderr.write('\x1b[s');
     for (let r = 0; r < rows.length; r++) {
       process.stderr.write(`\x1b[${r + 2};1H\x1b[K  ${rows[r]}`);
     }
-    process.stderr.write('\x1b[u'); // restore cursor
+    process.stderr.write('\x1b[u');
   }, 33); // ~30fps for smooth fluid motion
 }
 
@@ -179,6 +178,11 @@ function animatedGradientBlock(width: number, baseColor: string, peakColor: stri
     }
 
     rows.push(line);
+  }
+
+  // Mirror: append rows in reverse for the bottom half
+  for (let r = GRADIENT_ROWS - 1; r >= 0; r--) {
+    rows.push(rows[r]);
   }
 
   return rows;
