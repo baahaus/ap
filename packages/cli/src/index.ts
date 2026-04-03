@@ -742,22 +742,18 @@ export async function run(): Promise<void> {
     process.exit(0);
   }
 
-  // Interactive mode -- heartbeat animation runs before layout
+  // Interactive mode -- show welcome banner
+  activateLayout();
   const projectLabel = basename(cwd) || cwd;
   const sessionLabel = existingSession
     ? `${existingSession.entries.length} msgs resumed`
     : 'new session';
-
-  // Animate heartbeat directly to stdout (pre-layout)
-  const { renderHeartbeatAnimation } = await import('@blush/tui');
-  process.stdout.write('\x1b[2J\x1b[H'); // clear screen
-  await renderHeartbeatAnimation(Math.min(process.stdout.columns || 80, 64));
-  await new Promise((r) => setTimeout(r, 300)); // hold
-
-  // Now activate layout and render persistent banner to transcript
-  process.stdout.write('\x1b[2J\x1b[H'); // clear for layout takeover
-  activateLayout();
   await renderWelcome(VERSION, currentModel, projectLabel, sessionLabel);
+
+  // Start the breathing gradient animation
+  const { startGradientBreathing, stopGradientBreathing } = await import('@blush/tui');
+  startGradientBreathing(process.stdout.columns || 80);
+
   if (existingSession) {
     renderResumePreview(getActiveMessages(existingSession));
   }
@@ -847,7 +843,7 @@ export async function run(): Promise<void> {
   }
 
   // Clean up spinner on any exit path
-  process.on('exit', () => { spinner.stop(); if (loopTimer) clearInterval(loopTimer); });
+  process.on('exit', () => { spinner.stop(); stopGradientBreathing(); if (loopTimer) clearInterval(loopTimer); });
   process.on('uncaughtException', (err) => {
     spinner.stop();
     renderError(err.message);
@@ -1255,6 +1251,7 @@ export async function run(): Promise<void> {
           renderGoodbye();
         }
         input.close();
+        stopGradientBreathing();
         deactivateLayout();
         process.exit(0);
 

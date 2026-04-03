@@ -107,174 +107,62 @@ const farewells = [
 ];
 
 // ─────────────────────────────────────────
-// Heartbeat monitor
+// Animated gradient bar
 // ─────────────────────────────────────────
 
-const BRAILLE_BASE = 0x2800;
-const BRAILLE_DOTS = [
-  [0x01, 0x08], // row 0
-  [0x02, 0x10], // row 1
-  [0x04, 0x20], // row 2
-  [0x40, 0x80], // row 3
-];
-
-/** Generate EKG waveform y-values. */
-function generateEKG(pixelWidth: number, pixelHeight: number, cycles = 1.5): number[] {
-  const baseline = Math.floor(pixelHeight * 0.62);
-  const wave: number[] = [];
-
-  for (let x = 0; x < pixelWidth; x++) {
-    const phase = ((x / pixelWidth) * cycles) % 1.0;
-    let y = baseline;
-
-    if (phase >= 0.08 && phase < 0.18) {
-      const p = (phase - 0.08) / 0.10;
-      y = baseline - Math.sin(p * Math.PI) * (pixelHeight * 0.12);
-    } else if (phase >= 0.28 && phase < 0.32) {
-      const q = (phase - 0.28) / 0.04;
-      y = baseline + Math.sin(q * Math.PI) * (pixelHeight * 0.07);
-    } else if (phase >= 0.32 && phase < 0.40) {
-      const r = (phase - 0.32) / 0.08;
-      y = baseline - Math.sin(r * Math.PI) * (pixelHeight * 0.52);
-    } else if (phase >= 0.40 && phase < 0.46) {
-      const s = (phase - 0.40) / 0.06;
-      y = baseline + Math.sin(s * Math.PI) * (pixelHeight * 0.18);
-    } else if (phase >= 0.54 && phase < 0.68) {
-      const tw = (phase - 0.54) / 0.14;
-      y = baseline - Math.sin(tw * Math.PI) * (pixelHeight * 0.10);
-    }
-
-    wave.push(Math.max(0, Math.min(pixelHeight - 1, Math.round(y))));
-  }
-  return wave;
-}
-
-/** Render waveform to braille strings, optionally revealing only up to a column. */
-function waveformToBraille(
-  wave: number[],
-  cols: number,
-  rows: number,
-  revealTo: number,
-  color: string,
-  cursorColor: string,
-): string[] {
-  const grid: number[][] = Array.from({ length: rows }, () => new Array(cols).fill(0));
-  const pixelW = cols * 2;
-
-  // Plot with line interpolation
-  for (let x = 0; x < Math.min(pixelW, wave.length) - 1; x++) {
-    const bc = Math.floor(x / 2);
-    if (bc > revealTo) break;
-
-    const y0 = wave[x];
-    const y1 = wave[x + 1];
-    for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) {
-      const cr = Math.floor(y / 4);
-      const dr = y % 4;
-      const dc = x % 2;
-      if (cr >= 0 && cr < rows && bc >= 0 && bc < cols) {
-        grid[cr][bc] |= BRAILLE_DOTS[dr][dc];
-      }
-    }
-  }
-
-  // Also draw a faint baseline dot every 4 columns for the "monitor grid" feel
-  const baselineY = Math.floor(wave.length > 0 ? wave[0] : rows * 2);
-  const baseRow = Math.floor(baselineY / 4);
-  const baseDotRow = baselineY % 4;
-  for (let c = 0; c <= revealTo && c < cols; c += 4) {
-    if (baseRow >= 0 && baseRow < rows) {
-      grid[baseRow][c] |= BRAILLE_DOTS[baseDotRow][0];
-    }
-  }
-
-  const lines: string[] = [];
-  for (let r = 0; r < rows; r++) {
-    let line = '';
-    for (let c = 0; c < cols; c++) {
-      if (c > revealTo) { line += ' '; continue; }
-      const val = grid[r][c];
-      if (val === 0) { line += ' '; continue; }
-      const ch = String.fromCharCode(BRAILLE_BASE + val);
-      // Cursor glow: bright at cursor, warm behind
-      const dist = revealTo - c;
-      if (dist <= 1) {
-        line += chalk.hex(cursorColor).bold(ch);
-      } else if (dist <= 3) {
-        line += chalk.hex(color)(ch);
-      } else {
-        line += chalk.hex(color)(ch);
-      }
-    }
-    lines.push(line);
-  }
-  return lines;
-}
+let gradientTimer: ReturnType<typeof setInterval> | null = null;
+let gradientPhase = 0;
 
 /**
- * Animated heartbeat monitor -- EKG waveform draws left-to-right.
- * Writes directly to stdout (must run BEFORE layout activates).
+ * Start the breathing gradient animation in the composer divider zone.
+ * A bright pulse travels through the gradient bar on a slow loop,
+ * making it feel alive. Renders to stderr with cursor positioning
+ * so it doesn't pollute the transcript.
  */
-export async function renderHeartbeatAnimation(width: number): Promise<void> {
-  const theme = getTheme();
-  const cols = Math.min(width - 4, 60);
-  const rows = 3;
-  const pixelW = cols * 2;
-  const pixelH = rows * 4;
+export function startGradientBreathing(width: number): void {
+  if (prefersReducedMotion() || gradientTimer) return;
+  const w = Math.min(width - 4, 60);
 
-  if (prefersReducedMotion()) {
-    // Static fallback
-    const wave = generateEKG(pixelW, pixelH);
-    const lines = waveformToBraille(wave, cols, rows, cols - 1, theme.prompt, theme.prompt);
-    process.stdout.write('\n');
-    for (const line of lines) {
-      process.stdout.write(`  ${line}\n`);
-    }
-    return;
-  }
+  gradientTimer = setInterval(() => {
+    gradientPhase = (gradientPhase + 0.02) % 1.0;
+    const theme = getTheme();
+    const bar = animatedGradientBar(w, theme.border, theme.prompt, gradientPhase);
+    // Render the gradient as the FIRST line of the footer
+    // This is a fire-and-forget visual -- the layout will overwrite next redraw
+    // so we write directly to stderr at the top of the screen
+    process.stderr.write(`\x1b[s\x1b[2;1H\x1b[K  ${bar}\x1b[u`);
+  }, 50);
+}
 
-  const wave = generateEKG(pixelW, pixelH);
-
-  // Print empty rows to reserve space
-  process.stdout.write('\n');
-  for (let r = 0; r < rows; r++) {
-    process.stdout.write('\n');
-  }
-
-  const totalFrames = Math.ceil(cols / 2);
-  const frameDelay = 16; // ~60fps
-
-  for (let frame = 0; frame < totalFrames; frame++) {
-    const revealCol = frame * 2;
-    const lines = waveformToBraille(wave, cols, rows, revealCol, theme.prompt, '#FFFFFF');
-
-    // Move cursor up to first heartbeat row and redraw
-    process.stdout.write(`\x1b[${rows}A`);
-    for (const line of lines) {
-      process.stdout.write(`\r\x1b[K  ${line}\n`);
-    }
-
-    await new Promise((r) => setTimeout(r, frameDelay));
-  }
-
-  // Final frame: full waveform, no cursor highlight
-  process.stdout.write(`\x1b[${rows}A`);
-  const finalLines = waveformToBraille(wave, cols, rows, cols - 1, theme.prompt, theme.prompt);
-  for (const line of finalLines) {
-    process.stdout.write(`\r\x1b[K  ${line}\n`);
+export function stopGradientBreathing(): void {
+  if (gradientTimer) {
+    clearInterval(gradientTimer);
+    gradientTimer = null;
   }
 }
 
-/** Render static heartbeat for transcript (after layout activates). */
-export function renderStaticHeartbeat(width: number): void {
-  const theme = getTheme();
-  const cols = Math.min(width - 4, 60);
-  const rows = 3;
-  const wave = generateEKG(cols * 2, rows * 4);
-  const lines = waveformToBraille(wave, cols, rows, cols - 1, theme.prompt, theme.prompt);
-  for (const line of lines) {
-    renderLine(`  ${line}`);
+/** Gradient bar with a traveling bright pulse. */
+function animatedGradientBar(width: number, baseColor: string, peakColor: string, phase: number): string {
+  const shades = [' ', '░', '▒', '▓', '█'];
+  let result = '';
+  for (let i = 0; i < width; i++) {
+    const t = i / (width - 1);
+    // Base bell curve (static shape)
+    const baseIntensity = Math.pow(Math.sin(t * Math.PI), 2);
+    // Traveling pulse: a bright spot that moves through the bar
+    const pulseCenter = phase;
+    const pulseDist = Math.abs(t - pulseCenter);
+    const pulseBoost = Math.max(0, 1 - pulseDist * 5) * 0.4;
+    const intensity = Math.min(1, baseIntensity + pulseBoost);
+
+    const shadeIdx = Math.round(intensity * (shades.length - 1));
+    const shade = shades[Math.min(shadeIdx, shades.length - 1)];
+    // Color shifts brighter near the pulse
+    const colorT = Math.min(1, baseIntensity + pulseBoost * 2);
+    const color = lerpColor(baseColor, peakColor, colorT);
+    result += shade === ' ' ? ' ' : chalk.hex(color)(shade);
   }
+  return result;
 }
 
 /**
@@ -334,8 +222,9 @@ export async function renderWelcome(
     return c === ' ' ? ' ' : chalk.hex(color).bold(c);
   }).join('');
 
+  const barWidth = w - 4;
   renderLine('');
-  renderStaticHeartbeat(w);
+  renderLine(`  ${gradientBar(barWidth, theme.border, theme.prompt, theme.border)}`);
   renderLine('');
   renderLine(`  ${wordmark}    ${chalk.hex(theme.dim)(timeGreeting())}`);
   renderLine('');
