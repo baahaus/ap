@@ -26,6 +26,8 @@ const selectableModels: SelectableModel[] = [
   { name: 'gpt-5.1', provider: 'Codex' },
   { name: 'gpt-5-codex', provider: 'Codex' },
   { name: 'gpt-5', provider: 'Codex' },
+  { name: 'ollama:qwen3.5:9b', provider: 'Ollama' },
+  { name: 'ollama:rnj-1', provider: 'Ollama' },
 ];
 
 function getFavorites(): string[] {
