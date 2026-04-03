@@ -1,0 +1,103 @@
+{
+    "id": "62c972df-4667-4f28-814d-cd46a524c638",
+    "task_name": "terminal-bench/protein-assembly",
+    "trial_name": "protein-assembly__5cibmNv",
+    "trial_uri": "file:///Users/brandon/Projects/blush/jobs/2026-04-03__07-38-41/protein-assembly__5cibmNv",
+    "task_id": {
+        "org": "terminal-bench",
+        "name": "protein-assembly",
+        "ref": "sha256:eae346d9f193dd962d66c94e218281f37165a9e7524ec0a7a617c0c68bf136bb"
+    },
+    "source": "terminal-bench/terminal-bench-2",
+    "task_checksum": "48ec5102d0579c625f7a5f650403f74810a84fddd887df75f2901aa059ff9946",
+    "config": {
+        "task": {
+            "path": null,
+            "git_url": null,
+            "git_commit_id": null,
+            "name": "terminal-bench/protein-assembly",
+            "ref": "sha256:eae346d9f193dd962d66c94e218281f37165a9e7524ec0a7a617c0c68bf136bb",
+            "overwrite": false,
+            "download_dir": null,
+            "source": "terminal-bench/terminal-bench-2"
+        },
+        "trial_name": "protein-assembly__5cibmNv",
+        "trials_dir": "jobs/2026-04-03__07-38-41",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "bench.agent:Blush",
+            "model_name": "anthropic/claude-sonnet-4-20250514",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "9457d389-deba-42c3-9650-452244feda59"
+    },
+    "agent_info": {
+        "name": "blush",
+        "version": "blush 0.1.0",
+        "model_info": {
+            "name": "claude-sonnet-4-20250514",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": null,
+        "n_cache_tokens": null,
+        "n_output_tokens": null,
+        "cost_usd": null,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0.0
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-04-03T12:04:29.503652Z",
+    "finished_at": "2026-04-03T12:10:10.536441Z",
+    "environment_setup": {
+        "started_at": "2026-04-03T12:04:29.505421Z",
+        "finished_at": "2026-04-03T12:04:31.146612Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-03T12:04:31.146629Z",
+        "finished_at": "2026-04-03T12:08:15.251830Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-04-03T12:08:15.252931Z",
+        "finished_at": "2026-04-03T12:09:41.119758Z"
+    },
+    "verifier": {
+        "started_at": "2026-04-03T12:09:41.119896Z",
+        "finished_at": "2026-04-03T12:09:59.996272Z"
+    }
+}

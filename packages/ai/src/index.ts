@@ -19,7 +19,7 @@ export { createAnthropicProvider } from './providers/anthropic.js';
 export { createOpenAIProvider } from './providers/openai.js';
 export { createCodexProvider } from './providers/codex.js';
 export { registerProvider, getProvider, resolveProvider, UsageTracker } from './registry.js';
-export { loadConfig, getApiKey, saveConfig, updateConfig, type ApConfig } from './config.js';
+export { loadConfig, getApiKey, saveConfig, updateConfig, type BlushConfig, type ApConfig, type MCPServerEntry } from './config.js';
 export {
   configureSidecar,
   classifyBashCommand,

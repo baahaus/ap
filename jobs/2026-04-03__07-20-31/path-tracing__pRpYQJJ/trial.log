@@ -1,0 +1,17 @@
+Running command: apt-get update && apt-get install -y curl git && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs && npm install -g pnpm
+Command failed
+Trial path-tracing__pRpYQJJ failed: Command failed (exit 127): apt-get update && apt-get install -y curl git && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs && npm install -g pnpm
+stdout: Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease
+Get:2 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+Get:3 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+Get:4 http://archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+Get:5 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Packages [34.8 kB]
+Get:6 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1504 kB]
+Get:7 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [3499 kB]
+Get:8 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [1985 kB]
+Get:9 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [2153 kB]
+Get:10 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [2369 kB]
+Get:11 http://archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [3669 kB]
+Get:12 http://archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [38.1 kB]
+Get:13 http://arch ... [truncated]
+stderr: None

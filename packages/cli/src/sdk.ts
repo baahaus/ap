@@ -84,3 +84,6 @@ export async function createBlushSession(config: SdkConfig = {}): Promise<BlushS
     },
   };
 }
+
+// Backward-compatible alias for older SDK consumers.
+export const createApSession = createBlushSession;

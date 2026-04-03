@@ -1,0 +1,103 @@
+{
+    "id": "a52d8b30-9fe1-48b6-a683-3855ec6bf7b8",
+    "task_name": "terminal-bench/make-mips-interpreter",
+    "trial_name": "make-mips-interpreter__QaEHiZ5",
+    "trial_uri": "file:///Users/brandon/Projects/blush/jobs/2026-04-02__18-01-04/make-mips-interpreter__QaEHiZ5",
+    "task_id": {
+        "org": "terminal-bench",
+        "name": "make-mips-interpreter",
+        "ref": "sha256:608e82ecd67ce469824a34181b580cbd0e1096cdfc05fe40edda3e6bfada9773"
+    },
+    "source": "terminal-bench/terminal-bench-2",
+    "task_checksum": "f7e68fab72321eeaf465b53a98a4c3aaf7b66d57a3d3465708a15ed2c9f55f70",
+    "config": {
+        "task": {
+            "path": null,
+            "git_url": null,
+            "git_commit_id": null,
+            "name": "terminal-bench/make-mips-interpreter",
+            "ref": "sha256:608e82ecd67ce469824a34181b580cbd0e1096cdfc05fe40edda3e6bfada9773",
+            "overwrite": false,
+            "download_dir": null,
+            "source": "terminal-bench/terminal-bench-2"
+        },
+        "trial_name": "make-mips-interpreter__QaEHiZ5",
+        "trials_dir": "jobs/2026-04-02__18-01-04",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "bench.agent:Blush",
+            "model_name": "anthropic/claude-sonnet-4-20250514",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "b846a8b8-8090-4a08-b154-d5f70c3e39e3"
+    },
+    "agent_info": {
+        "name": "blush",
+        "version": "blush 0.1.0",
+        "model_info": {
+            "name": "claude-sonnet-4-20250514",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": null,
+        "n_cache_tokens": null,
+        "n_output_tokens": null,
+        "cost_usd": null,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0.0
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-04-02T22:01:08.492284Z",
+    "finished_at": "2026-04-02T22:05:58.024945Z",
+    "environment_setup": {
+        "started_at": "2026-04-02T22:01:08.495121Z",
+        "finished_at": "2026-04-02T22:01:09.336674Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-02T22:01:09.336736Z",
+        "finished_at": "2026-04-02T22:04:39.878922Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-04-02T22:04:39.879957Z",
+        "finished_at": "2026-04-02T22:04:40.437695Z"
+    },
+    "verifier": {
+        "started_at": "2026-04-02T22:04:40.437868Z",
+        "finished_at": "2026-04-02T22:05:47.408274Z"
+    }
+}

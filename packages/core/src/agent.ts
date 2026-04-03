@@ -18,6 +18,12 @@ import {
   saveSession,
   type Session,
 } from './session.js';
+import {
+  connectAllMCPServers,
+  closeMCPConnections,
+  type MCPServerConfig,
+  type MCPConnection,
+} from './mcp.js';
 
 export interface AgentConfig {
   provider: Provider;
@@ -27,6 +33,7 @@ export interface AgentConfig {
   extensions?: ExtensionManager;
   session?: Session; // Pass existing session for resume
   thinking?: boolean;
+  mcpServers?: MCPServerConfig[];
   onStream?: (event: StreamEvent) => void;
   onToolStart?: (name: string, input: Record<string, unknown>) => void;
   onToolEnd?: (name: string, result: string) => void;
@@ -36,6 +43,8 @@ export interface Agent {
   session: Session;
   usage: UsageTracker;
   extensions: ExtensionManager;
+  mcpConnections: MCPConnection[];
+  mcpTools: CoreTool[];
   send(content: string, options?: { signal?: AbortSignal }): Promise<Message>;
   getMessages(): Message[];
 }
@@ -55,11 +64,20 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     }
   }
 
-  // Merge core tools with extension tools
+  // Connect MCP servers
+  let mcpConnections: MCPConnection[] = [];
+  let mcpTools: CoreTool[] = [];
+  if (config.mcpServers && config.mcpServers.length > 0) {
+    mcpConnections = await connectAllMCPServers(config.mcpServers);
+    mcpTools = mcpConnections.flatMap((conn) => conn.tools);
+  }
+
+  // Merge core tools with extension tools and MCP tools
   const extTools = extensions.getTools();
   const allTools: CoreTool[] = [
     ...tools,
     ...extTools.map((t) => t as unknown as CoreTool),
+    ...mcpTools,
   ];
   const toolDefs = getToolDefinitions(allTools);
 
@@ -70,6 +88,12 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     systemPrompt += '\n\n' + appendedCtx.join('\n\n');
   }
   const maxToolRounds = 24;
+  const forcedFinalResponsePrompt = [
+    'You have reached the tool-use safety limit for this turn.',
+    'Do not call any more tools.',
+    'Respond to the user with the best possible answer using only the information already gathered.',
+    'If the task is incomplete, say exactly what remains blocked instead of attempting more tool calls.',
+  ].join(' ');
 
   async function runToolCalls(content: ContentBlock[], signal?: AbortSignal): Promise<Message> {
     const toolUses = content.filter((b): b is ToolUseContent => b.type === 'tool_use');
@@ -121,6 +145,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     let toolRoundCount = 0;
     let lastToolSignature = '';
     let repeatedToolSignatureCount = 0;
+    let forceFinalResponse = false;
 
     // Agent loop: send -> tool calls -> send results -> repeat
     while (true) {
@@ -134,8 +159,10 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
       const request: CompletionRequest = {
         model,
         messages,
-        system: systemPrompt,
-        tools: toolDefs,
+        system: forceFinalResponse
+          ? `${systemPrompt}\n\n${forcedFinalResponsePrompt}`
+          : systemPrompt,
+        tools: forceFinalResponse ? undefined : toolDefs,
         maxTokens: config.thinking ? 16384 : 8192,
         thinking: config.thinking,
       };
@@ -214,14 +241,19 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
       addEntry(session, response.message);
 
       // If no tool calls, we're done
-      if (response.stopReason !== 'tool_use') {
+      if (response.stopReason !== 'tool_use' || forceFinalResponse) {
         await saveSession(session);
         return response.message;
       }
 
       toolRoundCount++;
-      if (toolRoundCount > maxToolRounds) {
-        throw new Error(`Tool loop exceeded ${maxToolRounds} rounds`);
+      if (toolRoundCount >= maxToolRounds) {
+        forceFinalResponse = true;
+        addEntry(session, {
+          role: 'user',
+          content: 'Tool loop limit reached. Stop using tools and answer now with the best possible response from the information already gathered.',
+        });
+        continue;
       }
 
       // Execute tool calls and add results
@@ -243,7 +275,12 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
       }
 
       if (repeatedToolSignatureCount >= 3) {
-        throw new Error(`Detected repeated tool loop: ${toolSignature}`);
+        forceFinalResponse = true;
+        addEntry(session, {
+          role: 'user',
+          content: 'You are repeating the same tool calls. Stop using tools and answer now with the best possible response from the information already gathered.',
+        });
+        continue;
       }
 
       const toolResultMessage = await runToolCalls(blocks, signal);
@@ -253,10 +290,20 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     }
   }
 
+  // Close MCP connections on process exit
+  if (mcpConnections.length > 0) {
+    const cleanup = () => { closeMCPConnections(mcpConnections).catch(() => {}); };
+    process.on('exit', cleanup);
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+  }
+
   return {
     session,
     usage,
     extensions,
+    mcpConnections,
+    mcpTools,
     send,
     getMessages: () => getActiveMessages(session),
   };

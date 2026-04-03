@@ -1,7 +1,13 @@
 import chalk from 'chalk';
 import { getTheme } from './themes.js';
 import { sym, rule, box } from './symbols.js';
-import { appendTranscript, isLayoutActive, renderLayout, setFooterLines } from './layout.js';
+import {
+  appendTranscript,
+  clearFooterLines,
+  isLayoutActive,
+  renderLayout,
+  setFooterLines,
+} from './layout.js';
 import { pause, typeOut, drawRule, prefersReducedMotion } from './motion.js';
 
 // ─────────────────────────────────────────
@@ -184,23 +190,93 @@ const toolGlyphs: Record<string, string> = {
   todo: sym.toolTodo,
 };
 
-const toolTimers = new Map<string, number>();
+interface ToolActivity {
+  name: string;
+  status: 'running' | 'done' | 'error';
+  line: string;
+}
+
+const MAX_VISIBLE_TOOL_ACTIVITY = 6;
+const toolTimers = new Map<string, number[]>();
+const toolActivity: ToolActivity[] = [];
+
+function startToolTimer(name: string): void {
+  const timers = toolTimers.get(name) || [];
+  timers.push(Date.now());
+  toolTimers.set(name, timers);
+}
+
+function finishToolTimer(name: string): number {
+  const timers = toolTimers.get(name) || [];
+  const started = timers.pop();
+  if (timers.length === 0) {
+    toolTimers.delete(name);
+  } else {
+    toolTimers.set(name, timers);
+  }
+  return started ? Date.now() - started : 0;
+}
+
+function findLastRunningTool(name: string): number {
+  for (let index = toolActivity.length - 1; index >= 0; index--) {
+    const entry = toolActivity[index];
+    if (entry?.name === name && entry.status === 'running') {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function upsertToolActivity(entry: ToolActivity): void {
+  const existingIndex = findLastRunningTool(entry.name);
+  if (existingIndex >= 0) {
+    toolActivity[existingIndex] = entry;
+  } else {
+    toolActivity.push(entry);
+  }
+  if (toolActivity.length > MAX_VISIBLE_TOOL_ACTIVITY) {
+    toolActivity.splice(0, toolActivity.length - MAX_VISIBLE_TOOL_ACTIVITY);
+  }
+}
+
+function renderToolActivityFooter(): void {
+  if (!isLayoutActive()) return;
+  if (toolActivity.length === 0) {
+    clearFooterLines();
+    renderLayout();
+    return;
+  }
+  setFooterLines(toolActivity.map((entry) => entry.line));
+  renderLayout();
+}
+
+export function clearToolActivity(): void {
+  toolActivity.length = 0;
+  toolTimers.clear();
+  if (isLayoutActive()) {
+    clearFooterLines();
+    renderLayout();
+  }
+}
 
 export function renderToolStart(name: string, detail?: string): void {
   const theme = getTheme();
   const glyph = toolGlyphs[name] || sym.toolRun;
-  toolTimers.set(name, Date.now());
-  // Start is quiet -- just the glyph and detail, no bold name
-  renderLine(`  ${chalk.hex(theme.muted)(glyph)} ${chalk.hex(theme.dim)(name)}  ${chalk.hex(theme.muted)(detail || '')}`);
+  startToolTimer(name);
+  const line = `  ${chalk.hex(theme.muted)(glyph)} ${chalk.hex(theme.dim)(name)}  ${chalk.hex(theme.muted)(detail || '')}`;
+  if (isLayoutActive()) {
+    upsertToolActivity({ name, status: 'running', line });
+    renderToolActivityFooter();
+    return;
+  }
+  renderLine(line);
 }
 
 export function renderToolEnd(name: string, result: string): void {
   const theme = getTheme();
 
   // Elapsed time
-  const started = toolTimers.get(name);
-  toolTimers.delete(name);
-  const elapsed = started ? Date.now() - started : 0;
+  const elapsed = finishToolTimer(name);
   const timeLabel = elapsed > 500 ? `  ${chalk.hex(theme.muted)(`${(elapsed / 1000).toFixed(1)}s`)}` : '';
 
   // Compute a compact summary
@@ -216,13 +292,25 @@ export function renderToolEnd(name: string, result: string): void {
   }
 
   // End is confident -- bold name, accent checkmark, visible summary
-  renderLine(`  ${chalk.hex(theme.accent)(sym.toolDone)} ${chalk.hex(theme.text).bold(name)}  ${chalk.hex(theme.dim)(summary)}${timeLabel}`);
+  const line = `  ${chalk.hex(theme.accent)(sym.toolDone)} ${chalk.hex(theme.text).bold(name)}  ${chalk.hex(theme.dim)(summary)}${timeLabel}`;
+  if (isLayoutActive()) {
+    upsertToolActivity({ name, status: 'done', line });
+    renderToolActivityFooter();
+    return;
+  }
+  renderLine(line);
 }
 
 export function renderToolError(name: string, error: string): void {
   const theme = getTheme();
-  toolTimers.delete(name);
-  renderLine(`  ${chalk.hex(theme.error)(sym.toolFail)} ${chalk.hex(theme.text).bold(name)}  ${chalk.hex(theme.error)(error)}`);
+  finishToolTimer(name);
+  const line = `  ${chalk.hex(theme.error)(sym.toolFail)} ${chalk.hex(theme.text).bold(name)}  ${chalk.hex(theme.error)(error)}`;
+  if (isLayoutActive()) {
+    upsertToolActivity({ name, status: 'error', line });
+    renderToolActivityFooter();
+    return;
+  }
+  renderLine(line);
 }
 
 /**
@@ -345,6 +433,8 @@ export function renderDim(message: string): void {
  */
 export function renderStatus(parts: Record<string, string>): void {
   const theme = getTheme();
+  toolActivity.length = 0;
+  toolTimers.clear();
   const items = Object.entries(parts)
     .map(([k, v]) => `${chalk.hex(theme.muted)(k)} ${chalk.hex(theme.dim)(v)}`)
     .join(`  ${chalk.hex(theme.muted)(sym.dot)}  `);

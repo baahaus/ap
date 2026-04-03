@@ -1,0 +1,5 @@
+  ✗ error  No Anthropic auth found. Options:
+  1. ANTHROPIC_API_KEY env var or ~/.blush/config.json
+  2. Claude subscription (auto-detected from keychain)
+
+Get an API key at: https://console.anthropic.com/settings/keys

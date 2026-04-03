@@ -1,0 +1,25 @@
+{
+    "id": "c064d56f-eec8-41ce-9e64-e38cb806dce3",
+    "started_at": "2026-04-02T18:07:34.425273",
+    "finished_at": "2026-04-02T18:11:58.094845",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 0,
+        "evals": {
+            "blush__claude-sonnet-4-20250514__terminal-bench-terminal-bench-2": {
+                "n_trials": 1,
+                "n_errors": 0,
+                "metrics": [],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "make-mips-interpreter__WfePvPU"
+                        ]
+                    }
+                },
+                "exception_stats": {}
+            }
+        }
+    }
+}

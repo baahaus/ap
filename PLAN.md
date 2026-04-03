@@ -201,7 +201,7 @@ The `blush` command. Sessions, commands, modes.
 | `/team` | NEW | Team management: spawn, message, status, synthesize |
 | `/model [name]` | Pi | Switch model mid-session |
 | `/effort [level]` | CC | Set model effort (low/medium/high/max) |
-| `/color [color]` | CC | Set prompt color per session |
+| `/theme [name]` | Blush | Switch or inspect the active theme |
 | `/copy [N]` | CC | Copy Nth response, interactive block picker |
 
 **Operating modes:**
@@ -209,7 +209,7 @@ The `blush` command. Sessions, commands, modes.
 2. **Print** -- scripting output for pipelines (`blush -p "question"`)
 3. **JSON** -- structured output (`blush --json "question"`)
 4. **RPC** -- JSONL over stdin/stdout for embedding
-5. **SDK** -- programmatic via `createSession()`
+5. **SDK** -- programmatic via `createBlushSession()`
 
 **Session management:**
 - `blush -r` resumes the most recent saved session
@@ -301,15 +301,15 @@ Checkpoint after each tool call. Double-escape lets you rewind to any checkpoint
 ## Extension System
 
 TypeScript modules with full system access. Loaded from:
-- `~/.ap/extensions/` (global)
-- `.ap/extensions/` (per-project)
+- `~/.blush/extensions/` (global)
+- `.blush/extensions/` (per-project)
 - npm packages (`blush install <package>`)
 
 **Extension API:**
 ```typescript
-export default function activate(ap: ApContext) {
+export default function activate(blush: BlushContext) {
   // Register tools
-  ap.tools.register({
+  blush.tools.register({
     name: 'my-tool',
     description: '...',
     schema: Type.Object({ ... }),
@@ -317,14 +317,14 @@ export default function activate(ap: ApContext) {
   });
 
   // Register commands
-  ap.commands.register('/my-cmd', async (args) => { ... });
+  blush.commands.register('/my-cmd', async (args) => { ... });
 
   // Register event handlers
-  ap.events.on('message:before', async (msg) => { ... });
-  ap.events.on('tool:after', async (result) => { ... });
+  blush.events.on('message:before', async (msg) => { ... });
+  blush.events.on('tool:after', async (result) => { ... });
 
   // Inject dynamic context
-  ap.context.append('Always consider accessibility...');
+  blush.context.append('Always consider accessibility...');
 }
 ```
 
@@ -362,7 +362,7 @@ Analyze pending changes for security vulnerabilities...
 - [x] /context visualization (colored proportional bar)
 - [x] /model mid-session switching
 - [x] Session resume (--resume, --session, auto-save)
-- [x] Config file auth (~/.ap/config.json, .env, env vars)
+- [x] Config file auth (~/.blush/config.json, .env, env vars)
 - [x] CLI bundles workspace deps for standalone execution
 
 ### Phase 3 -- Team
@@ -385,17 +385,17 @@ Analyze pending changes for security vulnerabilities...
 - [x] Wren compression integration (CLI + HTTP modes, auto-detect, tool output compression)
 - [x] /diff command (colorized git diff)
 - [x] Built-in skills: /security-review, /commit, /simplify
-- [x] Package registry (blush install, ap list, ap remove -- npm, git, GitHub)
+- [x] Package registry (`blush install`, `blush list`, `blush remove` -- npm, git, GitHub)
 
 ### Phase 5 -- Polish
 - [x] Haiku sidecar (bash safety classification, conversation summarization, session titles)
 - [x] Checkpoint/rewind system (conversation + git state)
 - [x] Prompt suggestions after responses (via sidecar)
-- [x] 7 color themes (default, mono, ocean, forest, sunset, rose, hacker)
+- [x] 7 color themes (blush, mono, ocean, forest, sunset, rose, hacker)
 - [x] RPC mode (JSONL over stdin/stdout for embedding)
-- [x] SDK mode (createApSession() export for programmatic use)
+- [x] SDK mode (`createBlushSession()` export for programmatic use, plus compatibility alias)
 - [x] JSON output mode (--json flag for print mode)
-- [x] `ap init` -- interactive first-time setup
+- [x] `blush init` -- interactive first-time setup
 - [x] `!` prefix bash passthrough (output added to context)
 - [x] `/copy [N]` -- clipboard copy with code block detection
 - [x] Session resume via config.session (proper load path, not mutation)
@@ -450,7 +450,7 @@ Analyze pending changes for security vulnerabilities...
    - @blush/team: Worktree isolation, mailbox system, task queue, coordinator, synthesis
 
 2. `3949604` -- Config file auth, session resume, interactive /btw overlay
-   - Multi-source API key resolution (~/.ap/config.json, .env, env vars)
+   - Multi-source API key resolution (~/.blush/config.json, .env, env vars)
    - Session persistence: --resume, --session, auto-save, SIGINT save
    - Interactive /btw overlay with keypress dismiss
    - CLI bundles workspace deps for standalone node execution
@@ -481,10 +481,10 @@ Analyze pending changes for security vulnerabilities...
 
 8. `(current)` -- Phase 5 polish: sidecar, themes, RPC, SDK, checkpoints
    - Haiku sidecar: bash safety classification, conversation summarization, session titles
-   - 7 color themes: default, mono, ocean, forest, sunset, rose, hacker
+   - 7 color themes: blush, mono, ocean, forest, sunset, rose, hacker
    - /theme command + --theme flag
    - RPC mode: JSONL over stdin/stdout for embedding in editors/tools
-   - SDK mode: createApSession() export for programmatic use
+   - SDK mode: createBlushSession() export for programmatic use
    - JSON output: --json flag for print mode
    - Checkpoint system: conversation + git state rewind after tool calls
 
@@ -496,22 +496,22 @@ Analyze pending changes for security vulnerabilities...
    - Added targeted core-tool tests for file discovery, content search, and todo state
 
 **What works:**
-- `ap --help`, `ap --version` -- binary runs standalone
-- `ap -p "question"` -- print mode (needs API key)
-- `ap -p "q" --json` -- JSON output mode
-- `ap --rpc` -- RPC mode for embedding
-- `ap` -- interactive REPL with 16 commands
-- `ap -r` / `blush --session <id>` -- session resume
-- `ap -t ocean` / `/theme ocean` -- 7 color themes
+- `blush --help`, `blush --version` -- binary runs standalone
+- `blush -p "question"` -- print mode (needs API key)
+- `blush -p "q" --json` -- JSON output mode
+- `blush --rpc` -- RPC mode for embedding
+- `blush` -- interactive REPL with 16 commands
+- `blush -r` / `blush --session <id>` -- session resume
+- `blush -t ocean` / `/theme ocean` -- 7 color themes
 - `blush sessions` -- list sessions for cwd
 - `./packages/cli/dist/bin.js` -- runs directly (shebang + chmod)
 - `/diff`, `/context`, `/skills`, `/theme` -- work without API key
 - All 5 packages build clean in ~3s (full turbo cache in 7ms)
-- Extension system loads from ~/.ap/extensions/ and .ap/extensions/
-- Skills loaded from ~/.ap/skills/ and .ap/skills/
+- Extension system loads from ~/.blush/extensions/ and .blush/extensions/
+- Skills loaded from ~/.blush/skills/ and .blush/skills/
 - Provider auto-detection: claude*, gpt-5* (Codex when available), gpt-4*/o1*/o3*
 - Custom endpoint support: `ollama:model`, `local:model`, `http://url:port/v1:model`
-- SDK: `import { createApSession } from '@blush/cli/sdk'`
+- SDK: `import { createBlushSession } from '@blush/cli/sdk'`
 - Core tools available to the agent: `read`, `write`, `edit`, `bash`, `glob`, `grep`, `todo`
 
 **What needs API key to test end-to-end:**
@@ -529,10 +529,10 @@ Analyze pending changes for security vulnerabilities...
    - Silently skips when unavailable
 
 10. `(current)` -- Complete feature set
-    - `ap init`: interactive first-time setup (dirs, config, AGENTS.md)
+    - `blush init`: interactive first-time setup (dirs, config, AGENTS.md)
     - `!command` bash passthrough (output added to conversation context)
     - `/copy [N]`: clipboard copy with code block detection (pbcopy/xclip)
-    - Package registry: `blush install`, `ap list`, `ap remove` (npm, git, GitHub)
+    - Package registry: `blush install`, `blush list`, `blush remove` (npm, git, GitHub)
     - Prompt suggestions after responses via sidecar
     - Session resume uses proper config.session path (no mutation)
     - Updated help with all subcommands and key bindings

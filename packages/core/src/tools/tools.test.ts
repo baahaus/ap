@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { glob } from './glob.js';
 import { grep } from './grep.js';
 import { todo } from './todo.js';
-import { extractDuckDuckGoResults, htmlToText, looksLikeLocationOnlyQuery, looksLikeWeatherQuery } from './web-utils.js';
+import { extractDuckDuckGoLiteResults, extractDuckDuckGoResults, htmlToText, looksLikeLocationOnlyQuery, looksLikeWeatherQuery, normalizeUrlForDedup } from './web-utils.js';
 import { webFetch } from './web-fetch.js';
 import { webSearch } from './web-search.js';
 
@@ -110,6 +110,19 @@ describe('web helpers', () => {
     expect(results[1]?.title).toBe('Forecast Example');
   });
 
+  it('extracts search results from duckduckgo lite html', () => {
+    const results = extractDuckDuckGoLiteResults(`
+      <a rel="nofollow" href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fdocs">Example Docs</a>
+      <a rel="nofollow" href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.org%2Fguide">Example Guide</a>
+    `, 5);
+    expect(results[0]?.url).toBe('https://example.com/docs');
+    expect(results[1]?.title).toBe('Example Guide');
+  });
+
+  it('normalizes urls for dedupe by removing hashes and tracking params', () => {
+    expect(normalizeUrlForDedup('https://example.com/path/?utm_source=x#section')).toBe('https://example.com/path');
+  });
+
   it('detects weather-style queries', () => {
     expect(looksLikeWeatherQuery('whats the weather like tomorrow in pittsburgh')).toBe(true);
     expect(looksLikeWeatherQuery('find the open pull requests')).toBe(false);
@@ -139,6 +152,32 @@ describe('web_fetch', () => {
     expect(result).toContain('Fetched: https://example.com/');
     expect(result).toContain('Title: Example Page');
     expect(result).toContain('Readable text here.');
+  });
+
+  it('formats json responses readably', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ name: 'blush', tools: ['web_fetch', 'web_search'] }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+      },
+    )));
+
+    const result = await webFetch({ url: 'https://example.com/data.json' });
+    expect(result).toContain('Content-Type: application/json; charset=utf-8');
+    expect(result).toContain('"name": "blush"');
+    expect(result).toContain('"tools": [');
+  });
+
+  it('omits binary content cleanly', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('PNGDATA', {
+      status: 200,
+      headers: { 'content-type': 'image/png' },
+    })));
+
+    const result = await webFetch({ url: 'https://example.com/image.png' });
+    expect(result).toContain('Content-Type: image/png');
+    expect(result).toContain('Binary or unsupported content omitted');
   });
 });
 

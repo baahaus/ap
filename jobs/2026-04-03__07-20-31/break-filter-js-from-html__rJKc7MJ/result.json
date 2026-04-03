@@ -1,0 +1,91 @@
+{
+    "id": "b53bca82-ca96-4a71-a28a-5e927fb2d743",
+    "task_name": "terminal-bench/break-filter-js-from-html",
+    "trial_name": "break-filter-js-from-html__rJKc7MJ",
+    "trial_uri": "file:///Users/brandon/Projects/blush/jobs/2026-04-03__07-20-31/break-filter-js-from-html__rJKc7MJ",
+    "task_id": {
+        "org": "terminal-bench",
+        "name": "break-filter-js-from-html",
+        "ref": "sha256:59a2641df9bca789642ad4ab3f5790de5ffed6eb4a594ca7846d26422a55c4a8"
+    },
+    "source": "terminal-bench/terminal-bench-2",
+    "task_checksum": "3d0f7651479ff6739729cc962b44510501fa83a3df4cfc874583d4de3e4ef610",
+    "config": {
+        "task": {
+            "path": null,
+            "git_url": null,
+            "git_commit_id": null,
+            "name": "terminal-bench/break-filter-js-from-html",
+            "ref": "sha256:59a2641df9bca789642ad4ab3f5790de5ffed6eb4a594ca7846d26422a55c4a8",
+            "overwrite": false,
+            "download_dir": null,
+            "source": "terminal-bench/terminal-bench-2"
+        },
+        "trial_name": "break-filter-js-from-html__rJKc7MJ",
+        "trials_dir": "jobs/2026-04-03__07-20-31",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "bench.agent:Blush",
+            "model_name": "anthropic/claude-sonnet-4-20250514",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "649b9194-8063-4474-b3ac-c0640d4676a3"
+    },
+    "agent_info": {
+        "name": "blush",
+        "version": "unknown",
+        "model_info": {
+            "name": "claude-sonnet-4-20250514",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": null,
+    "verifier_result": null,
+    "exception_info": {
+        "exception_type": "NonZeroAgentExitCodeError",
+        "exception_message": "Command failed (exit 137): git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build\nstdout: Cloning into '/opt/blush'...\nScope: all 6 workspace projects\nLockfile is up to date, resolution step is skipped\nProgress: resolved 1, reused 0, downloaded 0, added 0\nPackages: +88\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\nProgress: resolved 88, reused 0, downloaded 0, added 0\nbash: line 1:  2250 Killed                  pnpm install --frozen-lockfile\n\nstderr: None",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/trial/trial.py\", line 533, in run\n    await self._setup_agent()\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/trial/trial.py\", line 266, in _setup_agent\n    await asyncio.wait_for(\n  File \"/Users/brandon/.local/share/uv/python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 384, in setup\n    await self.install(environment)\n  File \"/Users/brandon/Projects/blush/bench/agent.py\", line 35, in install\n    await self.exec_as_agent(\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 358, in exec_as_agent\n    return await self._exec(\n           ^^^^^^^^^^^^^^^^^\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 321, in _exec\n    raise NonZeroAgentExitCodeError(\nharbor.agents.installed.base.NonZeroAgentExitCodeError: Command failed (exit 137): git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build\nstdout: Cloning into '/opt/blush'...\nScope: all 6 workspace projects\nLockfile is up to date, resolution step is skipped\nProgress: resolved 1, reused 0, downloaded 0, added 0\nPackages: +88\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\nProgress: resolved 88, reused 0, downloaded 0, added 0\nbash: line 1:  2250 Killed                  pnpm install --frozen-lockfile\n\nstderr: None\n",
+        "occurred_at": "2026-04-03T07:26:18.931103"
+    },
+    "started_at": "2026-04-03T11:24:06.561026Z",
+    "finished_at": "2026-04-03T11:26:35.484952Z",
+    "environment_setup": {
+        "started_at": "2026-04-03T11:24:06.562201Z",
+        "finished_at": "2026-04-03T11:24:20.065078Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-03T11:24:20.065097Z",
+        "finished_at": "2026-04-03T11:26:18.930427Z"
+    },
+    "agent_execution": null,
+    "verifier": null
+}

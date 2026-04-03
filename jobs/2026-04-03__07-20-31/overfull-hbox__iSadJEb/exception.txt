@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/trial/trial.py", line 533, in run
+    await self._setup_agent()
+  File "/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/trial/trial.py", line 266, in _setup_agent
+    await asyncio.wait_for(
+  File "/Users/brandon/.local/share/uv/python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py", line 384, in setup
+    await self.install(environment)
+  File "/Users/brandon/Projects/blush/bench/agent.py", line 35, in install
+    await self.exec_as_agent(
+  File "/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py", line 358, in exec_as_agent
+    return await self._exec(
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py", line 321, in _exec
+    raise NonZeroAgentExitCodeError(
+harbor.agents.installed.base.NonZeroAgentExitCodeError: Command failed (exit 1): git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build
+stdout: Cloning into '/opt/blush'...
+ ERROR  Command was killed with SIGKILL (Forced termination): pnpm add pnpm@9.15.4 --loglevel=error --ignore-scripts --config.strict-dep-builds=false --config.node-linker=hoisted --config.bin=bin
+For help, run: pnpm help install
+
+stderr: None

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { createInterface } from 'node:readline';
+import { DEFAULT_ANTHROPIC_MODEL } from '@blush/ai';
 import { renderLine } from '@blush/tui';
 
 const BLUSH_DIR = join(homedir(), '.blush');
@@ -18,6 +19,7 @@ export async function init(): Promise<void> {
   const dirs = [
     BLUSH_DIR,
     join(BLUSH_DIR, 'extensions'),
+    join(BLUSH_DIR, 'packages'),
     join(BLUSH_DIR, 'skills'),
     join(BLUSH_DIR, 'sessions'),
   ];
@@ -50,7 +52,7 @@ export async function init(): Promise<void> {
       config.openai_api_key = openaiKey.trim();
     }
 
-    const defaultModel = await ask(rl, chalk.white('  Default model (Enter for claude-sonnet-4-20250514): '));
+    const defaultModel = await ask(rl, chalk.white(`  Default model (Enter for ${DEFAULT_ANTHROPIC_MODEL}): `));
     if (defaultModel.trim()) {
       config.default_model = defaultModel.trim();
     }
@@ -77,6 +79,7 @@ export async function init(): Promise<void> {
   renderLine(chalk.bold.green('\n  Blush is ready.\n'));
   renderLine(chalk.dim('  Run `blush` to start a session.'));
   renderLine(chalk.dim('  Run `blush --help` for all options.'));
-  renderLine(chalk.dim('  Add skills to ~/.blush/skills/'));
+  renderLine(chalk.dim('  Built-in skills load automatically. Add overrides to ~/.blush/skills/'));
   renderLine(chalk.dim('  Add extensions to ~/.blush/extensions/\n'));
+  renderLine(chalk.dim('  Install community packages with `blush install <source>`.\n'));
 }

@@ -37,7 +37,7 @@ export interface BlushContext {
 }
 
 export interface ExtensionModule {
-  default: (ap: BlushContext) => void | Promise<void>;
+  default: (blush: BlushContext) => void | Promise<void>;
 }
 
 export class ExtensionManager {

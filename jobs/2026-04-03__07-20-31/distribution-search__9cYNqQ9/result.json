@@ -1,0 +1,91 @@
+{
+    "id": "54829310-4b6c-41ac-9e78-e54777b8053d",
+    "task_name": "terminal-bench/distribution-search",
+    "trial_name": "distribution-search__9cYNqQ9",
+    "trial_uri": "file:///Users/brandon/Projects/blush/jobs/2026-04-03__07-20-31/distribution-search__9cYNqQ9",
+    "task_id": {
+        "org": "terminal-bench",
+        "name": "distribution-search",
+        "ref": "sha256:0212a95c28e26008f035e4cf39fc45cc69a20b621ae4ef83c1a27c4a0f20ecff"
+    },
+    "source": "terminal-bench/terminal-bench-2",
+    "task_checksum": "989c4efd0873ef0d487acfd55730c67c7a43e180255bc78e90cf36ccb0b5d7d2",
+    "config": {
+        "task": {
+            "path": null,
+            "git_url": null,
+            "git_commit_id": null,
+            "name": "terminal-bench/distribution-search",
+            "ref": "sha256:0212a95c28e26008f035e4cf39fc45cc69a20b621ae4ef83c1a27c4a0f20ecff",
+            "overwrite": false,
+            "download_dir": null,
+            "source": "terminal-bench/terminal-bench-2"
+        },
+        "trial_name": "distribution-search__9cYNqQ9",
+        "trials_dir": "jobs/2026-04-03__07-20-31",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "bench.agent:Blush",
+            "model_name": "anthropic/claude-sonnet-4-20250514",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "649b9194-8063-4474-b3ac-c0640d4676a3"
+    },
+    "agent_info": {
+        "name": "blush",
+        "version": "unknown",
+        "model_info": {
+            "name": "claude-sonnet-4-20250514",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": null,
+    "verifier_result": null,
+    "exception_info": {
+        "exception_type": "NonZeroAgentExitCodeError",
+        "exception_message": "Command failed (exit 137): git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build\nstdout: Cloning into '/opt/blush'...\nScope: all 6 workspace projects\nLockfile is up to date, resolution step is skipped\nProgress: resolved 1, reused 0, downloaded 0, added 0\nPackages: +88\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\nProgress: resolved 88, reused 0, downloaded 0, added 0\nProgress: resolved 88, reused 0, downloaded 1, added 0\nProgress: resolved 88, reused 0, downloaded 3, added 0\nProgress: resolved 88, reused 0, downloaded 7, added 0\nProgress: resolved 88, reused 0, downloaded 11, added 0\nProgress: resolved 88, reused 0, downloaded 15, added 0\nProgress: resolved 88, reused 0, downloaded 16, added 1\nProgress: resolved 88, reused 0, downloaded 30, added 15\nProgress: resolved 88, reused 0, downloaded 50, added 35\nProgress: resolved 88, reused 0, downloaded 62, added 49\nProgress: resolved 88, reused 0, downloaded 80, added 67\nProgress: resolved 88, reused 0, downloaded 88, added 88, done\n.../esbuild@0.27.4/node_modules/esbuild postinstall$ node in ... [truncated]\nstderr: None",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/trial/trial.py\", line 533, in run\n    await self._setup_agent()\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/trial/trial.py\", line 266, in _setup_agent\n    await asyncio.wait_for(\n  File \"/Users/brandon/.local/share/uv/python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 384, in setup\n    await self.install(environment)\n  File \"/Users/brandon/Projects/blush/bench/agent.py\", line 35, in install\n    await self.exec_as_agent(\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 358, in exec_as_agent\n    return await self._exec(\n           ^^^^^^^^^^^^^^^^^\n  File \"/Users/brandon/.local/share/uv/tools/harbor/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 321, in _exec\n    raise NonZeroAgentExitCodeError(\nharbor.agents.installed.base.NonZeroAgentExitCodeError: Command failed (exit 137): git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build\nstdout: Cloning into '/opt/blush'...\nScope: all 6 workspace projects\nLockfile is up to date, resolution step is skipped\nProgress: resolved 1, reused 0, downloaded 0, added 0\nPackages: +88\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\nProgress: resolved 88, reused 0, downloaded 0, added 0\nProgress: resolved 88, reused 0, downloaded 1, added 0\nProgress: resolved 88, reused 0, downloaded 3, added 0\nProgress: resolved 88, reused 0, downloaded 7, added 0\nProgress: resolved 88, reused 0, downloaded 11, added 0\nProgress: resolved 88, reused 0, downloaded 15, added 0\nProgress: resolved 88, reused 0, downloaded 16, added 1\nProgress: resolved 88, reused 0, downloaded 30, added 15\nProgress: resolved 88, reused 0, downloaded 50, added 35\nProgress: resolved 88, reused 0, downloaded 62, added 49\nProgress: resolved 88, reused 0, downloaded 80, added 67\nProgress: resolved 88, reused 0, downloaded 88, added 88, done\n.../esbuild@0.27.4/node_modules/esbuild postinstall$ node in ... [truncated]\nstderr: None\n",
+        "occurred_at": "2026-04-03T07:26:47.682654"
+    },
+    "started_at": "2026-04-03T11:23:17.020830Z",
+    "finished_at": "2026-04-03T11:26:58.549025Z",
+    "environment_setup": {
+        "started_at": "2026-04-03T11:23:17.022421Z",
+        "finished_at": "2026-04-03T11:23:23.348966Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-03T11:23:23.348985Z",
+        "finished_at": "2026-04-03T11:26:47.682277Z"
+    },
+    "agent_execution": null,
+    "verifier": null
+}

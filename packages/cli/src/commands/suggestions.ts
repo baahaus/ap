@@ -1,5 +1,10 @@
 import chalk from 'chalk';
-import { resolveProvider, type Message } from '@blush/ai';
+import {
+  resolveProvider,
+  type ContentBlock,
+  type Message,
+  type Provider,
+} from '@blush/ai';
 import { renderLine, getTheme, sym, deleteLine, moveCursorUp, isLayoutActive } from '@blush/tui';
 
 /** How many lines the last suggestion block took (0 = none shown) */
@@ -27,13 +32,24 @@ export function clearSuggestionsBelowCursor(linesBelowCursor: number): void {
   }
 }
 
+function extractTextContent(content: string | ContentBlock[]): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  return content
+    .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+}
+
 /**
  * Generate and display prompt suggestions after an agent response.
  * Uses the sidecar model for cheap generation.
  */
 export async function showSuggestions(
   messages: Message[],
-  provider: { complete: Function },
+  provider: Provider,
   model: string,
 ): Promise<void> {
   // Only suggest after a few exchanges
@@ -55,17 +71,12 @@ export async function showSuggestions(
     const recentMessages = messages.slice(-4);
     const context = recentMessages
       .map((m) => {
-        const text = typeof m.content === 'string'
-          ? m.content.slice(0, 300)
-          : m.content
-              .filter((b) => b.type === 'text')
-              .map((b) => (b.type === 'text' ? b.text : '').slice(0, 300))
-              .join('');
+        const text = extractTextContent(m.content).slice(0, 300);
         return `${m.role}: ${text}`;
       })
       .join('\n');
 
-    const response = await (suggestionModel.provider as any).complete({
+    const response = await suggestionModel.provider.complete({
       model: suggestionModel.model,
       messages: [
         {
@@ -82,12 +93,7 @@ Respond with exactly 3 lines, one suggestion per line. No numbering, no bullets,
       temperature: 0.5,
     });
 
-    const text = typeof response.message.content === 'string'
-      ? response.message.content
-      : response.message.content
-          .filter((b: any) => b.type === 'text')
-          .map((b: any) => b.text)
-          .join('');
+    const text = extractTextContent(response.message.content);
 
     const suggestions = text.trim().split('\n')
       .map((s: string) => s.trim())

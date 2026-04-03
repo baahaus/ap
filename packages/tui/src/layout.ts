@@ -78,6 +78,19 @@ function clearScreen(): void {
   process.stdout.write('\x1b[?25l\x1b[H\x1b[2J');
 }
 
+export function resetLayout(): void {
+  if (!state.active) return;
+  state.transcriptLines = [];
+  state.transcriptTail = '';
+  state.footerLines = [];
+  state.prompt = '';
+  state.inputLine = '';
+  state.cursor = 0;
+  state.composerLines = [];
+  state.composerLabel = '';
+  clearScreen();
+}
+
 function showCursor(): void {
   process.stdout.write('\x1b[?25h');
 }

@@ -1,0 +1,25 @@
+{
+    "id": "1d14f74d-4018-49f1-ac25-f7f87722e834",
+    "started_at": "2026-04-03T07:13:29.877502",
+    "finished_at": "2026-04-03T07:20:12.396794",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 0,
+        "evals": {
+            "blush__claude-sonnet-4-20250514__terminal-bench-terminal-bench-2": {
+                "n_trials": 1,
+                "n_errors": 0,
+                "metrics": [],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "make-mips-interpreter__waEhaKt"
+                        ]
+                    }
+                },
+                "exception_stats": {}
+            }
+        }
+    }
+}

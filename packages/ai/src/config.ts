@@ -5,17 +5,29 @@ import { homedir } from 'node:os';
 
 const BLUSH_CONFIG_PATH = join(homedir(), '.blush', 'config.json');
 
-export interface ApConfig {
+export interface MCPServerEntry {
+  name: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+}
+
+export interface BlushConfig {
   anthropic_api_key?: string;
   openai_api_key?: string;
   default_model?: string;
   default_theme?: string;
   default_provider?: string;
+  mcpServers?: MCPServerEntry[];
 }
 
-let cached: ApConfig | null = null;
+// Backward-compatible alias for older imports.
+export type ApConfig = BlushConfig;
 
-export function loadConfig(): ApConfig {
+let cached: BlushConfig | null = null;
+
+export function loadConfig(): BlushConfig {
   if (cached) return cached;
 
   // Try ~/.blush/config.json
@@ -33,7 +45,7 @@ export function loadConfig(): ApConfig {
   const envPath = join(process.cwd(), '.env');
   if (existsSync(envPath)) {
     const env = readFileSync(envPath, 'utf-8');
-    const config: ApConfig = {};
+    const config: BlushConfig = {};
     for (const line of env.split('\n')) {
       const [key, ...rest] = line.split('=');
       const val = rest.join('=').trim().replace(/^["']|["']$/g, '');
@@ -61,14 +73,14 @@ export function getApiKey(provider: 'anthropic' | 'openai'): string | undefined 
   return undefined;
 }
 
-export async function saveConfig(config: ApConfig): Promise<void> {
+export async function saveConfig(config: BlushConfig): Promise<void> {
   await mkdir(join(homedir(), '.blush'), { recursive: true });
   await writeFile(BLUSH_CONFIG_PATH, JSON.stringify(config, null, 2) + '\n', 'utf-8');
   cached = config;
 }
 
-export async function updateConfig(patch: Partial<ApConfig>): Promise<ApConfig> {
-  const nextConfig: ApConfig = {
+export async function updateConfig(patch: Partial<BlushConfig>): Promise<BlushConfig> {
+  const nextConfig: BlushConfig = {
     ...loadConfig(),
     ...patch,
   };

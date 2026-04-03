@@ -12,6 +12,7 @@ import {
   switchBranch,
   SkillRegistry,
   type SessionSummary,
+  type MCPConnection,
 } from '@blush/core';
 import {
   createInput,
@@ -22,6 +23,7 @@ import {
   renderMarkdown,
   renderToolStart,
   renderToolEnd,
+  clearToolActivity,
   renderError,
   renderDim,
   renderWelcome,
@@ -39,6 +41,7 @@ import {
   isLayoutActive,
   clearFooterLines,
   renderLayout,
+  resetLayout,
   sym,
 } from '@blush/tui';
 import {
@@ -65,7 +68,9 @@ const SLASH_COMMANDS = [
   '/context',
   '/diff',
   '/effort',
+  '/mcp',
   '/model',
+  '/new',
   '/resume',
   '/sessions',
   '/team',
@@ -281,7 +286,9 @@ function printHelp(): void {
     ['  /context', 'Show context window usage'],
     ['  /diff', 'Show uncommitted git changes'],
     ['  /effort [on|off]', 'Toggle extended thinking'],
+    ['  /mcp', 'Show connected MCP servers and tools'],
     ['  /model [name|number]', 'Switch model or open selector'],
+    ['  /new', 'Start a new session'],
     ['  /resume [id|number]', 'Resume another saved session'],
     ['  /sessions [delete]', 'Browse or manage sessions'],
     ['  /team <subcommand>', 'Team management'],
@@ -444,6 +451,7 @@ export async function run(): Promise<void> {
     responseStarted = false;
     assistantLineStart = true;
     assistantCol = 0;
+    clearToolActivity();
 
     // Set up abort controller for this message
     abortController = new AbortController();
@@ -484,6 +492,7 @@ export async function run(): Promise<void> {
       throw err;
     } finally {
       spinner.stop();
+      clearToolActivity();
       process.stdin.off('keypress', onAbortKey);
       abortController = null;
     }
@@ -495,12 +504,15 @@ export async function run(): Promise<void> {
     const { provider, model: resolvedModel } = resolveProvider(currentModel);
     currentModel = resolvedModel;
 
+    const config = loadConfig();
+
     agent = await createAgent({
       provider,
       model: currentModel,
       cwd,
       thinking,
       session: activeSession || undefined,
+      mcpServers: config.mcpServers,
       onStream: (event: StreamEvent) => {
         if (quietStreamOutput && event.type !== 'error') {
           return;
@@ -509,17 +521,20 @@ export async function run(): Promise<void> {
         switch (event.type) {
           case 'text': {
             spinner.stop();
+            clearToolActivity();
             beginResponse();
             renderAssistantChunk(event.text || '');
             break;
           }
           case 'thinking':
             spinner.stop();
+            clearToolActivity();
             beginResponse();
             renderAssistantChunk(chalk.hex(getTheme().dim)(event.text || ''));
             break;
           case 'error':
             spinner.stop();
+            clearToolActivity();
             beginResponse();
             renderError(event.error || 'Unknown error');
             break;
@@ -549,6 +564,11 @@ export async function run(): Promise<void> {
       },
     });
     activeSession = agent.session;
+
+    const mcpToolCount = agent.mcpTools?.length || 0;
+    if (mcpToolCount > 0) {
+      renderDim(`  ${mcpToolCount} MCP tool(s) connected`);
+    }
 
     return agent;
   }
@@ -658,10 +678,6 @@ export async function run(): Promise<void> {
   await renderWelcome(VERSION, currentModel, projectLabel, sessionLabel);
   if (existingSession) {
     renderResumePreview(getActiveMessages(existingSession));
-  }
-
-  if (skillCount > 0) {
-    renderDim(`  ${skillCount} skill${skillCount > 1 ? 's' : ''} ready`);
   }
 
   const input = createInput({
@@ -790,6 +806,29 @@ export async function run(): Promise<void> {
         const label = thinking ? 'extended thinking on' : 'extended thinking off';
         const color = thinking ? theme.accent : theme.dim;
         renderLine(`  ${chalk.hex(theme.accent)(sym.arrow)} ${chalk.hex(color)(label)}`);
+        return true;
+      }
+
+      case 'mcp': {
+        const a = await getAgent();
+        const connections: MCPConnection[] = a.mcpConnections || [];
+        if (connections.length === 0) {
+          renderDim('  No MCP servers connected');
+          renderDim('  Add servers to ~/.blush/config.json under "mcpServers"');
+          return true;
+        }
+        const theme = getTheme();
+        renderLine('');
+        renderLine(`  ${chalk.hex(theme.text).bold('MCP SERVERS')}`);
+        renderLine('');
+        for (const conn of connections) {
+          const toolCount = conn.tools.length;
+          renderLine(`  ${chalk.hex(theme.success)(sym.toolDone)} ${chalk.hex(theme.text).bold(conn.name)}  ${chalk.hex(theme.muted)(`${toolCount} tool${toolCount === 1 ? '' : 's'}`)}`);
+          for (const tool of conn.tools) {
+            renderLine(`    ${chalk.hex(theme.dim)(tool.name)}`);
+          }
+          renderLine('');
+        }
         return true;
       }
 
@@ -945,6 +984,26 @@ export async function run(): Promise<void> {
 
         // Resume the selected session (reuse resumeSession logic)
         await resumeSession(sessionId);
+        return true;
+      }
+
+      case 'new': {
+        if (agent) {
+          activeSession = agent.session;
+          await saveSession(agent.session);
+        }
+
+        existingSession = undefined;
+        activeSession = undefined;
+        agent = null;
+        titleGenerated = false;
+
+        if (isLayoutActive()) {
+          resetLayout();
+          renderLayout();
+        }
+
+        renderLine(`  ${chalk.hex(getTheme().accent)(sym.session)} ${chalk.hex(getTheme().dim)('new session')}`);
         return true;
       }
 
@@ -1185,6 +1244,7 @@ export async function run(): Promise<void> {
         const a = await getAgent();
 
         const usageBefore = { ...a.usage.total };
+        const toolCallsBefore = totalToolCalls;
         const startTime = Date.now();
         await sendAndRender(a, trimmed);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -1205,6 +1265,10 @@ export async function run(): Promise<void> {
         };
         if (cost !== null) {
           statusParts.cost = `$${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}`;
+        }
+        const turnToolCalls = totalToolCalls - toolCallsBefore;
+        if (turnToolCalls > 0) {
+          statusParts.tools = String(turnToolCalls);
         }
         statusParts.time = `${elapsed}s`;
         renderStatus(statusParts);

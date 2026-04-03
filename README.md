@@ -8,7 +8,7 @@ Team CLI agent from [ap.haus](https://ap.haus). Terminal coding agent where mult
 
 ```bash
 git clone https://github.com/baahaus/blush.git
-cd ap
+cd blush
 pnpm install
 pnpm build
 ```
@@ -23,7 +23,7 @@ Or link globally:
 
 ```bash
 pnpm link --global packages/cli
-ap
+blush
 ```
 
 ## Setup
@@ -40,7 +40,7 @@ Or set your API key manually:
 # Environment variable
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# Config file (~/.ap/config.json)
+# Config file (~/.blush/config.json)
 { "anthropic_api_key": "sk-ant-..." }
 
 # .env file in project root
@@ -92,8 +92,11 @@ http://host:port/v1:model-name        # Any OpenAI-compatible endpoint
 | `/branch` | Fork conversation at current point |
 | `/context` | Visualize context window usage |
 | `/diff` | Show uncommitted git changes with color |
+| `/effort [on|off]` | Toggle extended thinking |
+| `/mcp` | Show connected MCP servers and tools |
 | `/copy [N]` | Copy Nth response to clipboard |
 | `/model <name>` | Switch model mid-session |
+| `/new` | Start a new session |
 | `/theme [name]` | Set or show color theme |
 | `/team spawn <name>` | Create a peer agent with its own worktree |
 | `/team msg <name> <msg>` | Send message to an agent |
@@ -149,7 +152,7 @@ Pi.dev proved it: frontier models don't need 30 built-in tools.
 
 ### Team-Native
 
-Most agent frameworks bolt on multi-agent as an afterthought. AP builds it into the core:
+Most agent frameworks bolt on multi-agent as an afterthought. Blush builds it into the core:
 
 - **Peer agents** -- equals, not parent-child
 - **Git worktree isolation** -- each agent gets a full repo copy
@@ -171,7 +174,7 @@ Optional [Wren](https://github.com/Divagation/wren) integration compresses tool 
 
 ### Themes
 
-7 built-in color themes: `default`, `mono`, `ocean`, `forest`, `sunset`, `rose`, `hacker`
+7 built-in color themes: `blush`, `mono`, `ocean`, `forest`, `sunset`, `rose`, `hacker`
 
 ```bash
 blush -t hacker        # Set on start
@@ -191,9 +194,9 @@ blush -t hacker        # Set on start
 ### SDK Usage
 
 ```typescript
-import { createApSession } from '@blush/cli/sdk';
+import { createBlushSession } from '@blush/cli/sdk';
 
-const session = await createApSession({
+const session = await createBlushSession({
   model: 'claude-sonnet-4-20250514',
   cwd: '/path/to/project',
 });
@@ -204,9 +207,9 @@ console.log(response.text);
 
 ## Context Files
 
-AP reads instruction files hierarchically:
+Blush reads instruction files hierarchically:
 
-- `~/.ap/AGENTS.md` or `~/.ap/CLAUDE.md` -- global instructions
+- `~/.blush/AGENTS.md` or `~/.blush/CLAUDE.md` -- global instructions
 - `./AGENTS.md` or `./CLAUDE.md` -- per-project instructions
 - `./SYSTEM.md` -- full system prompt override
 - `./APPEND_SYSTEM.md` -- append to system prompt
@@ -228,23 +231,23 @@ Analyze pending changes on the current branch...
 
 **Built-in skills:** `/security-review`, `/commit`, `/simplify`
 
-Install to `~/.ap/skills/` (global) or `.ap/skills/` (project).
+Install to `~/.blush/skills/` (global) or `.blush/skills/` (project).
 
 ## Extensions
 
 TypeScript modules with full system access:
 
 ```typescript
-export default function activate(ap) {
-  ap.tools.register({ name: 'my-tool', ... });
-  ap.commands.register('/my-cmd', async (args) => { ... });
-  ap.events.on('tool:before', async (data) => { ... });
-  ap.events.on('tool:after', async (data) => { ... });
-  ap.context.append('Always consider accessibility...');
+export default function activate(blush) {
+  blush.tools.register({ name: 'my-tool', ... });
+  blush.commands.register('/my-cmd', async (args) => { ... });
+  blush.events.on('tool:before', async (data) => { ... });
+  blush.events.on('tool:after', async (data) => { ... });
+  blush.context.append('Always consider accessibility...');
 }
 ```
 
-Install to `~/.ap/extensions/` (global) or `.ap/extensions/` (project).
+Install to `~/.blush/extensions/` (global) or `.blush/extensions/` (project).
 
 ## Packages
 
@@ -252,7 +255,7 @@ Install community extensions and skills:
 
 ```bash
 blush install user/repo              # From GitHub
-blush install npm:ap-extension-foo   # From npm
+blush install npm:blush-extension-foo   # From npm
 blush install git:https://...        # From any git URL
 blush list                           # Show installed
 blush remove <name>                  # Uninstall

@@ -6,6 +6,7 @@ export {
   renderToolEnd,
   renderToolError,
   renderToolResult,
+  clearToolActivity,
   renderError,
   renderSuccess,
   renderWarning,
@@ -32,6 +33,7 @@ export {
   renderLayout,
   commitInputToTranscript,
   clearFooterLines,
+  resetLayout,
 } from './layout.js';
 
 export {

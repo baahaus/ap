@@ -1,0 +1,37 @@
+{
+    "id": "649b9194-8063-4474-b3ac-c0640d4676a3",
+    "started_at": "2026-04-03T07:20:33.952070",
+    "finished_at": "2026-04-03T07:37:31.400768",
+    "n_total_trials": 10,
+    "stats": {
+        "n_trials": 10,
+        "n_errors": 9,
+        "evals": {
+            "blush__claude-sonnet-4-20250514__terminal-bench-terminal-bench-2": {
+                "n_trials": 1,
+                "n_errors": 9,
+                "metrics": [],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "compile-compcert__fV2xZh8"
+                        ]
+                    }
+                },
+                "exception_stats": {
+                    "NonZeroAgentExitCodeError": [
+                        "make-mips-interpreter__rcjML9P",
+                        "circuit-fibsqrt__goD7oaz",
+                        "build-pov-ray__Yux8Fjt",
+                        "overfull-hbox__iSadJEb",
+                        "video-processing__fvFiVpR",
+                        "distribution-search__9cYNqQ9",
+                        "break-filter-js-from-html__rJKc7MJ",
+                        "protein-assembly__6adKUB7",
+                        "path-tracing__pRpYQJJ"
+                    ]
+                }
+            }
+        }
+    }
+}

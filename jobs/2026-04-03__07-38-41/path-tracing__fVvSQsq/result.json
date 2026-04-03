@@ -1,0 +1,103 @@
+{
+    "id": "a3157c9c-42b4-4610-bb27-d6ea78489bf4",
+    "task_name": "terminal-bench/path-tracing",
+    "trial_name": "path-tracing__fVvSQsq",
+    "trial_uri": "file:///Users/brandon/Projects/blush/jobs/2026-04-03__07-38-41/path-tracing__fVvSQsq",
+    "task_id": {
+        "org": "terminal-bench",
+        "name": "path-tracing",
+        "ref": "sha256:6cce7549c4c77218bd118924c0c1db3b0bcc0311bd8124baa6f34c69212376ef"
+    },
+    "source": "terminal-bench/terminal-bench-2",
+    "task_checksum": "f6f5aa84872bfaf615783038e3ffe94672efc0ca7db5c5d6ebdefffe00b8c2dd",
+    "config": {
+        "task": {
+            "path": null,
+            "git_url": null,
+            "git_commit_id": null,
+            "name": "terminal-bench/path-tracing",
+            "ref": "sha256:6cce7549c4c77218bd118924c0c1db3b0bcc0311bd8124baa6f34c69212376ef",
+            "overwrite": false,
+            "download_dir": null,
+            "source": "terminal-bench/terminal-bench-2"
+        },
+        "trial_name": "path-tracing__fVvSQsq",
+        "trials_dir": "jobs/2026-04-03__07-38-41",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "bench.agent:Blush",
+            "model_name": "anthropic/claude-sonnet-4-20250514",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "9457d389-deba-42c3-9650-452244feda59"
+    },
+    "agent_info": {
+        "name": "blush",
+        "version": "blush 0.1.0",
+        "model_info": {
+            "name": "claude-sonnet-4-20250514",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": null,
+        "n_cache_tokens": null,
+        "n_output_tokens": null,
+        "cost_usd": null,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0.0
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-04-03T12:10:10.834750Z",
+    "finished_at": "2026-04-03T12:18:48.997120Z",
+    "environment_setup": {
+        "started_at": "2026-04-03T12:10:10.835919Z",
+        "finished_at": "2026-04-03T12:10:22.882180Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-03T12:10:22.882206Z",
+        "finished_at": "2026-04-03T12:14:11.649155Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-04-03T12:14:11.649228Z",
+        "finished_at": "2026-04-03T12:18:08.469047Z"
+    },
+    "verifier": {
+        "started_at": "2026-04-03T12:18:08.469110Z",
+        "finished_at": "2026-04-03T12:18:38.296638Z"
+    }
+}

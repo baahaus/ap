@@ -1,0 +1,10 @@
+Running command: apt-get update && apt-get install -y curl git && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs && npm install -g pnpm
+Command outputs captured
+Running command: git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build
+Command failed
+Trial overfull-hbox__iSadJEb failed: Command failed (exit 1): git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build
+stdout: Cloning into '/opt/blush'...
+ ERROR  Command was killed with SIGKILL (Forced termination): pnpm add pnpm@9.15.4 --loglevel=error --ignore-scripts --config.strict-dep-builds=false --config.node-linker=hoisted --config.bin=bin
+For help, run: pnpm help install
+
+stderr: None

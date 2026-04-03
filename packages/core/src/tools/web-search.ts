@@ -1,10 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
 import {
+  dedupeSearchResults,
   domainMatches,
+  extractDuckDuckGoLiteResults,
   extractDuckDuckGoResults,
   fetchTextWithFallback,
   looksLikeLocationOnlyQuery,
   looksLikeWeatherQuery,
+  normalizeSearchSnippet,
   truncateText,
   type SearchResultItem,
 } from './web-utils.js';
@@ -25,16 +28,39 @@ interface BraveResult {
   description?: string;
 }
 
+interface SerpapiOrganicResult {
+  title?: string;
+  link?: string;
+  snippet?: string;
+}
+
+interface TavilyResult {
+  title?: string;
+  url?: string;
+  content?: string;
+}
+
+interface SearchProvider {
+  name: string;
+  search: (query: string, limit: number, timeoutMs: number) => Promise<SearchResultItem[]>;
+}
+
+interface SearchCollection {
+  results: SearchResultItem[];
+  providers: string[];
+  queries: string[];
+}
+
 async function searchWithBrave(
   query: string,
   limit: number,
-  timeout_ms: number,
+  timeoutMs: number,
 ): Promise<SearchResultItem[]> {
   const apiKey = process.env.BRAVE_SEARCH_API_KEY;
   if (!apiKey) return [];
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeout_ms);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const url = new URL('https://api.search.brave.com/res/v1/web/search');
@@ -67,67 +93,92 @@ async function searchWithBrave(
   }
 }
 
-async function searchWithDuckDuckGo(
+async function searchWithSerpapi(
   query: string,
   limit: number,
-  timeout_ms: number,
+  timeoutMs: number,
 ): Promise<SearchResultItem[]> {
-  const url = new URL('https://html.duckduckgo.com/html/');
-  url.searchParams.set('q', query);
+  const apiKey = process.env.SERPAPI_API_KEY;
+  if (!apiKey) return [];
 
-  const response = await fetchTextWithFallback(url.toString(), {
-    headers: {
-      'user-agent': 'blush/0.1.0 (+https://github.com/baahaus/blush)',
-      accept: 'text/html,application/xhtml+xml',
-    },
-    timeoutMs: timeout_ms,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+  try {
+    const url = new URL('https://serpapi.com/search.json');
+    url.searchParams.set('engine', 'google');
+    url.searchParams.set('q', query);
+    url.searchParams.set('api_key', apiKey);
+    url.searchParams.set('num', String(limit));
+
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return [];
+
+    const data = await response.json() as { organic_results?: SerpapiOrganicResult[] };
+    return (data.organic_results || [])
+      .filter((item): item is Required<Pick<SerpapiOrganicResult, 'title' | 'link'>> & SerpapiOrganicResult => Boolean(item.title && item.link))
+      .map((item) => ({
+        title: item.title!,
+        url: item.link!,
+        snippet: item.snippet,
+      }))
+      .slice(0, limit);
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const html = response.text;
-  return extractDuckDuckGoResults(html, limit);
 }
 
-async function searchWithBingRss(
+async function searchWithTavily(
   query: string,
   limit: number,
-  timeout_ms: number,
+  timeoutMs: number,
 ): Promise<SearchResultItem[]> {
-  const url = new URL('https://www.bing.com/search');
-  url.searchParams.set('format', 'rss');
-  url.searchParams.set('q', query);
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) return [];
 
-  const response = await fetchTextWithFallback(url.toString(), {
-    headers: {
-      'user-agent': 'blush/0.1.0 (+https://github.com/baahaus/blush)',
-      accept: 'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
-    },
-    timeoutMs: timeout_ms,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        max_results: limit,
+        search_depth: 'advanced',
+        include_answer: false,
+        include_raw_content: false,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json() as { results?: TavilyResult[] };
+    return (data.results || [])
+      .filter((item): item is Required<Pick<TavilyResult, 'title' | 'url'>> & TavilyResult => Boolean(item.title && item.url))
+      .map((item) => ({
+        title: item.title!,
+        url: item.url!,
+        snippet: item.content,
+      }))
+      .slice(0, limit);
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const items = [...response.text.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, limit);
-  return items.map((match) => {
-    const item = match[1];
-    const title = (item.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim();
-    const link = (item.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
-    const description = (item.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || '')
-      .replace(/<!\[CDATA\[|\]\]>/g, '')
-      .replace(/&amp;/g, '&')
-      .trim();
-    return { title, url: link, snippet: description };
-  }).filter((item) => item.title && item.url);
 }
 
 async function searchWeather(
   query: string,
-  timeout_ms: number,
+  timeoutMs: number,
 ): Promise<SearchResultItem[]> {
   const cityMatch = query.match(/\b(?:in|for|at)\s+([a-zA-Z .'-]+?)(?:\s+(?:tomorrow|today|tonight|this weekend|next week)|$)/i);
   const location = (cityMatch?.[1] || query)
@@ -141,7 +192,7 @@ async function searchWeather(
       'user-agent': 'blush/0.1.0 (+https://github.com/baahaus/blush)',
       accept: 'application/json,text/plain;q=0.9,*/*;q=0.8',
     },
-    timeoutMs: timeout_ms,
+    timeoutMs,
   });
 
   if (!response.ok) return [];
@@ -176,6 +227,199 @@ async function searchWeather(
   }];
 }
 
+async function searchWithDuckDuckGoHtml(
+  query: string,
+  limit: number,
+  timeoutMs: number,
+): Promise<SearchResultItem[]> {
+  const url = new URL('https://html.duckduckgo.com/html/');
+  url.searchParams.set('q', query);
+
+  const response = await fetchTextWithFallback(url.toString(), {
+    headers: {
+      'user-agent': 'blush/0.1.0 (+https://github.com/baahaus/blush)',
+      accept: 'text/html,application/xhtml+xml',
+    },
+    timeoutMs,
+    retryWithCurlOnHttpError: true,
+  });
+
+  if (!response.ok) return [];
+  return extractDuckDuckGoResults(response.text, limit);
+}
+
+async function searchWithDuckDuckGoLite(
+  query: string,
+  limit: number,
+  timeoutMs: number,
+): Promise<SearchResultItem[]> {
+  const url = new URL('https://lite.duckduckgo.com/lite/');
+  url.searchParams.set('q', query);
+
+  const response = await fetchTextWithFallback(url.toString(), {
+    headers: {
+      'user-agent': 'blush/0.1.0 (+https://github.com/baahaus/blush)',
+      accept: 'text/html,application/xhtml+xml',
+    },
+    timeoutMs,
+    retryWithCurlOnHttpError: true,
+  });
+
+  if (!response.ok) return [];
+  return extractDuckDuckGoLiteResults(response.text, limit);
+}
+
+async function searchWithBingRss(
+  query: string,
+  limit: number,
+  timeoutMs: number,
+): Promise<SearchResultItem[]> {
+  const url = new URL('https://www.bing.com/search');
+  url.searchParams.set('format', 'rss');
+  url.searchParams.set('q', query);
+
+  const response = await fetchTextWithFallback(url.toString(), {
+    headers: {
+      'user-agent': 'blush/0.1.0 (+https://github.com/baahaus/blush)',
+      accept: 'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
+    },
+    timeoutMs,
+    retryWithCurlOnHttpError: true,
+  });
+
+  if (!response.ok) return [];
+
+  const items = [...response.text.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, limit);
+  return items
+    .map((match) => {
+      const item = match[1];
+      const title = (item.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+      const link = (item.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || '').trim();
+      const description = (item.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || '')
+        .replace(/<!\[CDATA\[|\]\]>/g, '')
+        .replace(/&amp;/g, '&')
+        .trim();
+      return { title, url: link, snippet: description };
+    })
+    .filter((item) => item.title && item.url);
+}
+
+function buildQueryVariants(query: string, allowedDomains?: string[]): string[] {
+  const variants = new Set<string>();
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const cleanedDomains = (allowedDomains || []).map((domain) => domain.trim()).filter(Boolean);
+  const withoutSiteLiterals = trimmed.replace(/\bsite:[^\s]+/gi, '').replace(/\s{2,}/g, ' ').trim();
+  const yearless = withoutSiteLiterals.replace(/\b20\d{2}\b/g, ' ').replace(/\s{2,}/g, ' ').trim();
+
+  if (cleanedDomains.length > 0) {
+    for (const domain of cleanedDomains) {
+      variants.add(`site:${domain} ${withoutSiteLiterals || trimmed}`);
+      variants.add(`${withoutSiteLiterals || trimmed} site:${domain}`);
+    }
+  }
+
+  variants.add(trimmed);
+
+  if (withoutSiteLiterals && withoutSiteLiterals !== trimmed) {
+    variants.add(withoutSiteLiterals);
+  }
+
+  if (yearless && yearless !== trimmed && yearless !== withoutSiteLiterals) {
+    variants.add(yearless);
+    for (const domain of cleanedDomains) {
+      variants.add(`site:${domain} ${yearless}`);
+    }
+  }
+
+  return [...variants];
+}
+
+function filterSearchResults(
+  results: SearchResultItem[],
+  allowedDomains?: string[],
+  blockedDomains?: string[],
+): SearchResultItem[] {
+  return dedupeSearchResults(results)
+    .filter((item) => domainMatches(item.url, allowedDomains, blockedDomains))
+    .map((item) => ({
+      ...item,
+      snippet: normalizeSearchSnippet(item.snippet),
+    }));
+}
+
+async function collectSearchResults(
+  query: string,
+  limit: number,
+  timeoutMs: number,
+  allowedDomains?: string[],
+  blockedDomains?: string[],
+): Promise<SearchCollection> {
+  const variants = buildQueryVariants(query, allowedDomains);
+  const providers: SearchProvider[] = [
+    { name: 'Brave Search API', search: searchWithBrave },
+    { name: 'SerpAPI', search: searchWithSerpapi },
+    { name: 'Tavily', search: searchWithTavily },
+    { name: 'DuckDuckGo HTML', search: searchWithDuckDuckGoHtml },
+    { name: 'DuckDuckGo Lite', search: searchWithDuckDuckGoLite },
+    { name: 'Bing RSS', search: searchWithBingRss },
+  ];
+
+  const providerLimit = Math.min(Math.max(limit * 3, 8), 20);
+
+  for (const provider of providers) {
+    for (const variant of variants) {
+      const raw = await provider.search(variant, providerLimit, timeoutMs);
+      const filtered = filterSearchResults(raw, allowedDomains, blockedDomains);
+      if (filtered.length === 0) continue;
+
+      return {
+        results: filtered.slice(0, limit),
+        providers: [provider.name],
+        queries: [variant],
+      };
+    }
+  }
+
+  return {
+    results: [],
+    providers: [],
+    queries: [],
+  };
+}
+
+function formatSearchOutput(
+  query: string,
+  providers: string[],
+  queries: string[],
+  results: SearchResultItem[],
+): string {
+  const lines = [
+    `${providers.length === 1 ? 'Search provider' : 'Search providers'}: ${providers.join(', ')}`,
+    `Query: ${query}`,
+  ];
+
+  const effectiveQueries = queries.filter((item) => item !== query);
+  if (effectiveQueries.length === 1) {
+    lines.push(`Effective query: ${effectiveQueries[0]}`);
+  } else if (effectiveQueries.length > 1) {
+    lines.push(`Effective queries: ${effectiveQueries.join(' | ')}`);
+  }
+
+  lines.push('');
+
+  for (const [index, item] of results.entries()) {
+    lines.push(`${index + 1}. ${item.title}`);
+    lines.push(`   URL: ${item.url}`);
+    if (item.snippet) {
+      lines.push(`   Snippet: ${truncateText(item.snippet, 240)}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 export async function webSearch(params: WebSearchParams): Promise<string> {
   const {
     query,
@@ -185,63 +429,36 @@ export async function webSearch(params: WebSearchParams): Promise<string> {
     timeout_ms = 15000,
   } = params;
 
+  if (!query.trim()) {
+    return 'Error searching the web: query cannot be empty.';
+  }
+
   try {
-    let results: SearchResultItem[] = [];
-    let provider = 'Brave Search API';
-
     if (looksLikeWeatherQuery(query) || looksLikeLocationOnlyQuery(query)) {
-      results = await searchWeather(query, timeout_ms);
-      if (results.length > 0) {
-        provider = 'wttr.in weather lookup';
+      const weatherResults = await searchWeather(query, timeout_ms);
+      if (weatherResults.length > 0) {
+        return formatSearchOutput(query, ['wttr.in weather lookup'], [query], weatherResults.slice(0, limit));
       }
     }
 
-    if (results.length === 0) {
-      results = await searchWithBrave(query, limit, timeout_ms);
-      if (results.length > 0) {
-        provider = 'Brave Search API';
-      }
+    const collection = await collectSearchResults(
+      query,
+      limit,
+      timeout_ms,
+      allowed_domains,
+      blocked_domains,
+    );
+
+    if (collection.results.length === 0) {
+      return `No search results found for "${query}". Tried providers: Brave Search API, SerpAPI, Tavily, DuckDuckGo HTML, DuckDuckGo Lite, Bing RSS.`;
     }
 
-    if (results.length === 0) {
-      results = await searchWithBingRss(query, Math.max(limit * 2, limit), timeout_ms);
-      if (results.length > 0) {
-        provider = 'Bing RSS';
-      }
-    }
-
-    if (results.length === 0) {
-      results = await searchWithDuckDuckGo(query, Math.max(limit * 2, limit), timeout_ms);
-      if (results.length > 0) {
-        provider = 'DuckDuckGo HTML';
-      }
-    }
-
-    const filtered = results
-      .filter((item) => domainMatches(item.url, allowed_domains, blocked_domains))
-      .slice(0, limit);
-
-    if (filtered.length === 0) {
-      return `No search results found for "${query}".`;
-    }
-
-    const lines = [
-      `Search provider: ${provider}`,
-      `Query: ${query}`,
-      '',
-      ...filtered.flatMap((item, index) => {
-        const block = [
-          `${index + 1}. ${item.title}`,
-          `   URL: ${item.url}`,
-        ];
-        if (item.snippet) {
-          block.push(`   Snippet: ${truncateText(item.snippet, 240)}`);
-        }
-        return block;
-      }),
-    ];
-
-    return lines.join('\n');
+    return formatSearchOutput(
+      query,
+      collection.providers,
+      collection.queries,
+      collection.results.slice(0, limit),
+    );
   } catch (err) {
     return `Error searching the web for "${query}": ${(err as Error).message}`;
   }

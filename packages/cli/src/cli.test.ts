@@ -40,6 +40,8 @@ describe('CLI argument parsing', () => {
       ['/branch', 'branch', ''],
       ['/context', 'context', ''],
       ['/diff', 'diff', ''],
+      ['/effort on', 'effort', 'on'],
+      ['/mcp', 'mcp', ''],
       ['/model claude-sonnet-4-20250514', 'model', 'claude-sonnet-4-20250514'],
       ['/resume abc123', 'resume', 'abc123'],
       ['/skills', 'skills', ''],
@@ -133,6 +135,14 @@ describe('init command', () => {
   it('init module exports init function', async () => {
     const initModule = await import('./commands/init.js');
     expect(typeof initModule.init).toBe('function');
+  });
+});
+
+describe('sdk exports', () => {
+  it('keeps createBlushSession as the canonical export and preserves the old alias', async () => {
+    const sdk = await import('./sdk.js');
+    expect(typeof sdk.createBlushSession).toBe('function');
+    expect(sdk.createApSession).toBe(sdk.createBlushSession);
   });
 });
 

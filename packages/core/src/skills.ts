@@ -1,9 +1,12 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const GLOBAL_SKILLS_DIR = join(homedir(), '.blush', 'skills');
+const BUILTIN_SKILLS_DIR = join(__dirname, '..', '..', '..', 'skills');
 
 export interface Skill {
   name: string;
@@ -91,10 +94,22 @@ export class SkillRegistry {
   }
 
   async loadAll(cwd: string): Promise<number> {
-    let total = 0;
-    total += await this.loadDirectory(GLOBAL_SKILLS_DIR);
-    total += await this.loadDirectory(join(cwd, '.blush', 'skills'));
-    return total;
+    const initialCount = this.skills.size;
+    const directories = [
+      BUILTIN_SKILLS_DIR,
+      GLOBAL_SKILLS_DIR,
+      join(cwd, '.blush', 'skills'),
+    ];
+    const seenDirectories = new Set<string>();
+
+    for (const directory of directories) {
+      const normalizedDirectory = resolve(directory);
+      if (seenDirectories.has(normalizedDirectory)) continue;
+      seenDirectories.add(normalizedDirectory);
+      await this.loadDirectory(directory);
+    }
+
+    return this.skills.size - initialCount;
   }
 
   list(): Skill[] {

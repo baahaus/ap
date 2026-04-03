@@ -1,0 +1,27 @@
+Running command: apt-get update && apt-get install -y curl git && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs && npm install -g pnpm
+Command outputs captured
+Running command: git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build
+Command failed
+Trial protein-assembly__6adKUB7 failed: Command failed (exit 137): git clone https://github.com/baahaus/blush.git /opt/blush && cd /opt/blush && pnpm install --frozen-lockfile && pnpm build
+stdout: Cloning into '/opt/blush'...
+Scope: all 6 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +88
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 88, reused 0, downloaded 0, added 0
+Progress: resolved 88, reused 0, downloaded 4, added 3
+Progress: resolved 88, reused 0, downloaded 13, added 6
+Progress: resolved 88, reused 0, downloaded 15, added 6
+Progress: resolved 88, reused 0, downloaded 22, added 7
+Progress: resolved 88, reused 0, downloaded 46, added 33
+Progress: resolved 88, reused 0, downloaded 76, added 62
+Progress: resolved 88, reused 0, downloaded 88, added 88, done
+.../esbuild@0.27.4/node_modules/esbuild postinstall$ node install.js
+.../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+.../esbuild@0.27.4/node_modules/esbuild postinstall: Done
+.../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+
+devDependencies:
++ @types/nod ... [truncated]
+stderr: None

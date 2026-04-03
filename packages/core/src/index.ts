@@ -53,3 +53,10 @@ export {
   setCheckpointCwd,
   type Checkpoint,
 } from './checkpoints.js';
+export {
+  connectMCPServer,
+  connectAllMCPServers,
+  closeMCPConnections,
+  type MCPServerConfig,
+  type MCPConnection,
+} from './mcp.js';
