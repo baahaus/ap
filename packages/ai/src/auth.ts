@@ -75,6 +75,21 @@ export function getAnthropicAuth(apiKey?: string): AnthropicAuth {
     };
   }
 
+  // Fall back to env var OAuth token (for containers / CI where keychain is unavailable).
+  const envToken = process.env.BLUSH_OAUTH_TOKEN;
+  if (envToken) {
+    return {
+      mode: 'oauth',
+      headers: {
+        'Authorization': `Bearer ${envToken}`,
+        'anthropic-beta': 'claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-scope-2026-01-05',
+        'user-agent': 'claude-cli/2.1.90 (external, cli)',
+        'x-app': 'cli',
+      },
+      queryParams: 'beta=true',
+    };
+  }
+
   // Fall back to subscription OAuth credentials when available.
   const oauth = getSubscriptionOAuth();
   if (oauth) {
