@@ -103,14 +103,25 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
    */
   function formatSystem(system?: string): unknown {
     if (auth.mode === 'api_key') {
-      return system || undefined;
+      // API key mode: use array format with cache_control on the last block
+      if (!system) return undefined;
+      return [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
     }
     // OAuth: must be array format with identity string first
-    const blocks = [{ type: 'text', text: OAUTH_IDENTITY }];
+    const blocks: Array<Record<string, unknown>> = [{ type: 'text', text: OAUTH_IDENTITY }];
     if (system) {
-      blocks.push({ type: 'text', text: system });
+      // Mark the last system block as cacheable
+      blocks.push({ type: 'text', text: system, cache_control: { type: 'ephemeral' } });
     }
     return blocks;
+  }
+
+  /** Mark the last tool definition as cacheable so the full set gets cached. */
+  function withToolCaching(tools: unknown[]): unknown[] {
+    if (tools.length === 0) return tools;
+    const copy = tools.map((t) => ({ ...(t as Record<string, unknown>) }));
+    copy[copy.length - 1].cache_control = { type: 'ephemeral' };
+    return copy;
   }
 
   async function* stream(request: CompletionRequest): AsyncIterable<StreamEvent> {
@@ -128,7 +139,7 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
 
     const sys = formatSystem(request.system);
     if (sys) body.system = sys;
-    if (request.tools?.length) body.tools = request.tools;
+    if (request.tools?.length) body.tools = withToolCaching(request.tools);
     // Temperature cannot be set when thinking is enabled
     if (request.temperature !== undefined && !useThinking) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
@@ -248,7 +259,7 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
 
     const sys = formatSystem(request.system);
     if (sys) body.system = sys;
-    if (request.tools?.length) body.tools = request.tools;
+    if (request.tools?.length) body.tools = withToolCaching(request.tools);
     // Temperature cannot be set when thinking is enabled
     if (request.temperature !== undefined && !useThinking) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;

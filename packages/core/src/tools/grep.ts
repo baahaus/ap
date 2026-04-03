@@ -55,7 +55,8 @@ export async function grep(params: GrepParams): Promise<string> {
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
       if (!matcher.test(lines[i])) continue;
-      matches.push(`${file}:${i + 1}\t${lines[i]}`);
+      const line = lines[i].length > 500 ? lines[i].slice(0, 500) + '...' : lines[i];
+      matches.push(`${file}:${i + 1}\t${line}`);
       if (matches.length >= limit) {
         return [
           `Matched ${matches.length}+ line${matches.length === 1 ? '' : 's'} for /${pattern}/ under ${root}:`,

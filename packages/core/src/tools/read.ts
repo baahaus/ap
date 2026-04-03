@@ -23,9 +23,16 @@ export async function read(params: ReadParams): Promise<string> {
     const slice = lines.slice(offset, offset + limit);
 
     // Format with line numbers (1-based)
-    return slice
+    let result = slice
       .map((line, i) => `${offset + i + 1}\t${line}`)
       .join('\n');
+
+    // Hard cap: truncate to ~30k chars (~8k tokens) to protect context window
+    const MAX_OUTPUT = 30_000;
+    if (result.length > MAX_OUTPUT) {
+      result = result.slice(0, MAX_OUTPUT) + `\n\n[truncated: output exceeded ${MAX_OUTPUT} chars. Use offset/limit to read specific sections.]`;
+    }
+    return result;
   } catch (err) {
     return `Error reading ${file_path}: ${(err as Error).message}`;
   }

@@ -137,6 +137,27 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     return { role: 'user', content: results };
   }
 
+  /** Rough token estimate: ~4 chars per token for English text. */
+  function estimateTokens(messages: Message[]): number {
+    let chars = 0;
+    for (const msg of messages) {
+      if (typeof msg.content === 'string') {
+        chars += msg.content.length;
+      } else {
+        for (const block of msg.content) {
+          if (block.type === 'text') chars += block.text.length;
+          else if (block.type === 'tool_result') chars += (typeof block.content === 'string' ? block.content.length : 200);
+          else if (block.type === 'tool_use') chars += JSON.stringify(block.input).length + 50;
+          else if (block.type === 'thinking') chars += block.text.length;
+        }
+      }
+    }
+    return Math.ceil(chars / 4);
+  }
+
+  // Auto-compaction threshold: ~80k tokens (~320k chars) leaves room for response
+  const AUTO_COMPACT_TOKENS = 80_000;
+
   async function send(content: string, options?: { signal?: AbortSignal }): Promise<Message> {
     const signal = options?.signal;
     // Add user message to session
@@ -155,6 +176,36 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
       }
 
       const messages = getActiveMessages(session);
+
+      // Auto-compact when context grows too large
+      if (estimateTokens(messages) > AUTO_COMPACT_TOKENS && messages.length > 6) {
+        const summaryParts: string[] = [];
+        // Keep last 4 messages intact, summarize the rest
+        const toSummarize = messages.slice(0, -4);
+        for (const msg of toSummarize) {
+          const text = typeof msg.content === 'string'
+            ? msg.content
+            : msg.content
+                .filter((b) => b.type === 'text')
+                .map((b) => (b.type === 'text' ? b.text : ''))
+                .join('');
+          if (text.trim()) {
+            summaryParts.push(`[${msg.role}] ${text.slice(0, 200)}`);
+          }
+        }
+        const compactMsg: Message = {
+          role: 'user',
+          content: `[Auto-compacted: ${toSummarize.length} messages summarized to save context]\n${summaryParts.join('\n')}\n---\nRecent messages follow.`,
+        };
+        const branchId = `auto-compact-${Date.now().toString(36)}`;
+        session.currentBranch = branchId;
+        addEntry(session, compactMsg);
+        // Re-add the recent messages
+        for (const msg of messages.slice(-4)) {
+          addEntry(session, msg);
+        }
+        continue; // Re-enter loop with compacted messages
+      }
 
       const request: CompletionRequest = {
         model,

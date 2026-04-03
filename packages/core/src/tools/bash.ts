@@ -57,6 +57,14 @@ export async function bash(params: BashParams): Promise<string> {
       if (code !== 0) {
         result += (result ? '\n' : '') + `Exit code: ${code}`;
       }
+      // Hard cap: truncate to ~30k chars (~8k tokens) to protect context window
+      const MAX_OUTPUT = 30_000;
+      if (result.length > MAX_OUTPUT) {
+        const lines = result.split('\n');
+        const truncated = result.slice(0, MAX_OUTPUT);
+        const keptLines = truncated.split('\n').length;
+        result = truncated + `\n\n[truncated: showing ${keptLines} of ${lines.length} lines]`;
+      }
       resolve(result || '(no output)');
     });
 
