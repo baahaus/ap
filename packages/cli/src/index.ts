@@ -742,12 +742,21 @@ export async function run(): Promise<void> {
     process.exit(0);
   }
 
-  // Interactive mode -- show welcome banner
-  activateLayout();
+  // Interactive mode -- heartbeat animation runs before layout
   const projectLabel = basename(cwd) || cwd;
   const sessionLabel = existingSession
     ? `${existingSession.entries.length} msgs resumed`
     : 'new session';
+
+  // Animate heartbeat directly to stdout (pre-layout)
+  const { renderHeartbeatAnimation } = await import('@blush/tui');
+  process.stdout.write('\x1b[2J\x1b[H'); // clear screen
+  await renderHeartbeatAnimation(Math.min(process.stdout.columns || 80, 64));
+  await new Promise((r) => setTimeout(r, 300)); // hold
+
+  // Now activate layout and render persistent banner to transcript
+  process.stdout.write('\x1b[2J\x1b[H'); // clear for layout takeover
+  activateLayout();
   await renderWelcome(VERSION, currentModel, projectLabel, sessionLabel);
   if (existingSession) {
     renderResumePreview(getActiveMessages(existingSession));

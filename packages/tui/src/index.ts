@@ -19,6 +19,7 @@ export {
   renderTeamStatus,
   renderPrompt,
   renderWelcome,
+  renderHeartbeatAnimation,
   renderGoodbye,
   renderThemeSwatch,
   clearLine,
