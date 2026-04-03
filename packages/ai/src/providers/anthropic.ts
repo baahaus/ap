@@ -85,7 +85,7 @@ function toAnthropicMessages(messages: Message[]): unknown[] {
         case 'text':
           return { type: 'text', text: block.text };
         case 'tool_use':
-          return { type: 'tool_use', id: block.id, name: block.name, input: block.input };
+          return { type: 'tool_use', id: block.call_id || block.id, name: block.name, input: block.input };
         case 'tool_result':
           return {
             type: 'tool_result',

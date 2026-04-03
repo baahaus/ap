@@ -51,7 +51,7 @@ function toOpenAIMessages(messages: Message[], system?: string): unknown[] {
         tool_calls: toolUses.map((tu) => {
           if (tu.type !== 'tool_use') return null;
           return {
-            id: tu.id,
+            id: tu.call_id || tu.id,
             type: 'function',
             function: { name: tu.name, arguments: JSON.stringify(tu.input) },
           };
