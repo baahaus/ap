@@ -246,12 +246,6 @@ export async function renderWelcome(
 
   const barWidth = w - 4;
   renderLine('');
-  // Static 3-row mountain gradient (animation replaces this in-place)
-  const staticRows = animatedGradientBlock(barWidth, theme.border, theme.prompt, 0.5);
-  for (const row of staticRows) {
-    renderLine(`  ${row}`);
-  }
-  renderLine('');
   renderLine(`  ${wordmark}    ${chalk.hex(theme.dim)(timeGreeting())}`);
   renderLine('');
   renderLine(`  ${chalk.hex(theme.muted)('project')}  ${chalk.hex(theme.text).bold(project)}`);
