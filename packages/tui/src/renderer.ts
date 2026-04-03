@@ -115,8 +115,15 @@ let gradientTimer: ReturnType<typeof setInterval> | null = null;
 let gradientPhase = 0;
 const GRADIENT_ROWS = 4;
 
-// Row thresholds: top row = narrow spike, bottom rows widen out
-const ROW_THRESHOLDS = [0.70, 0.40, 0.18, 0.03];
+// Star shape: each row has its own curve exponent + threshold.
+// High exponent = narrow spike (top/bottom points).
+// Low exponent = wide spread (horizontal star points).
+const ROW_CURVES = [
+  { exp: 7, threshold: 0.20 },   // top point: sharp narrow spike
+  { exp: 4, threshold: 0.15 },   // inner: medium
+  { exp: 2.2, threshold: 0.08 }, // wider
+  { exp: 1.0, threshold: 0.02 }, // horizontal points: very wide
+];
 
 /**
  * Start the breathing gradient animation.
@@ -150,13 +157,13 @@ function animatedGradientBlock(width: number, baseColor: string, peakColor: stri
   const rows: string[] = [];
 
   for (let row = 0; row < GRADIENT_ROWS; row++) {
-    const threshold = ROW_THRESHOLDS[row];
+    const { exp, threshold } = ROW_CURVES[row];
     let line = '';
 
     for (let i = 0; i < width; i++) {
       const t = i / (width - 1);
-      // Star shape: sharp peak with concave sides (high exponent pinches the curve)
-      const baseIntensity = Math.pow(Math.sin(t * Math.PI), 4);
+      // Each row has its own curve: high exp = narrow, low exp = wide
+      const baseIntensity = Math.pow(Math.sin(t * Math.PI), exp);
       // Traveling pulse: smooth gaussian-ish, wider than before
       const pulseDist = Math.min(Math.abs(t - phase), Math.abs(t - phase + 1), Math.abs(t - phase - 1));
       const pulseBoost = Math.exp(-pulseDist * pulseDist * 30) * 0.5;
