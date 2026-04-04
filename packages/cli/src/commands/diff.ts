@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { renderLine } from '@blushagent/tui';
 
 /**
@@ -17,9 +17,11 @@ export function showDiff(): void {
   // Get staged + unstaged diff
   let diff = '';
   try {
-    const staged = execSync('git diff --cached --stat', { encoding: 'utf-8' }).trim();
-    const unstaged = execSync('git diff --stat', { encoding: 'utf-8' }).trim();
-    const fullDiff = execSync('git diff --cached && git diff', { encoding: 'utf-8', shell: 'bash' }).trim();
+    const staged = execFileSync('git', ['diff', '--cached', '--stat'], { encoding: 'utf-8' }).trim();
+    const unstaged = execFileSync('git', ['diff', '--stat'], { encoding: 'utf-8' }).trim();
+    const stagedDiff = execFileSync('git', ['diff', '--cached'], { encoding: 'utf-8' }).trim();
+    const unstagedDiff = execFileSync('git', ['diff'], { encoding: 'utf-8' }).trim();
+    const fullDiff = [stagedDiff, unstagedDiff].filter(Boolean).join('\n');
 
     if (!staged && !unstaged) {
       renderLine(chalk.dim('No uncommitted changes.'));

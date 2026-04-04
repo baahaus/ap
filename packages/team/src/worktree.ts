@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { mkdtempSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -27,10 +27,11 @@ export function createWorktree(repoPath: string, agentName: string): Worktree {
 
   try {
     // Create worktree with new branch from HEAD
-    execSync(
-      `git worktree add -b "${branch}" "${worktreeDir}" HEAD`,
-      { cwd: repoPath, stdio: 'pipe' },
-    );
+    // Use execFileSync to avoid shell injection via branch/path interpolation
+    execFileSync('git', ['worktree', 'add', '-b', branch, worktreeDir, 'HEAD'], {
+      cwd: repoPath,
+      stdio: 'pipe',
+    });
   } catch (err) {
     rmSync(worktreeDir, { recursive: true, force: true });
     throw new Error(`Failed to create worktree: ${(err as Error).message}`);
@@ -56,7 +57,7 @@ export function createWorktree(repoPath: string, agentName: string): Worktree {
         }
 
         // Remove worktree
-        execSync(`git worktree remove "${worktreeDir}" --force`, {
+        execFileSync('git', ['worktree', 'remove', worktreeDir, '--force'], {
           cwd: repoPath,
           stdio: 'pipe',
         });
@@ -80,7 +81,8 @@ export function createWorktree(repoPath: string, agentName: string): Worktree {
  */
 export function mergeWorktree(repoPath: string, branch: string): { success: boolean; output: string } {
   try {
-    const output = execSync(`git merge "${branch}" --no-edit`, {
+    // Use execFileSync to avoid shell injection via branch name interpolation
+    const output = execFileSync('git', ['merge', branch, '--no-edit'], {
       cwd: repoPath,
       encoding: 'utf-8',
     });

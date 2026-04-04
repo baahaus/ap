@@ -1,8 +1,8 @@
-import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, unlink, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
-import { createHash } from 'node:crypto';
+import { homedir, tmpdir } from 'node:os';
+import { createHash, randomBytes } from 'node:crypto';
 import type { Message } from '@blushagent/ai';
 
 const SESSIONS_DIR = join(homedir(), '.blush', 'sessions');
@@ -176,7 +176,19 @@ export async function saveSession(session: Session): Promise<void> {
 
   const meta = JSON.stringify({ _meta: true, title: session.title || '' });
   const lines = session.entries.map((e) => JSON.stringify(e)).join('\n');
-  await writeFile(path, meta + '\n' + lines + '\n', 'utf-8');
+  const content = meta + '\n' + lines + '\n';
+
+  // Atomic write: write to temp file then rename to prevent corruption
+  // from concurrent reads seeing partial writes
+  const tmpPath = join(dir, `.${session.id}.${randomBytes(4).toString('hex')}.tmp`);
+  try {
+    await writeFile(tmpPath, content, 'utf-8');
+    await rename(tmpPath, path);
+  } catch (err) {
+    // Clean up temp file on failure
+    try { await unlink(tmpPath); } catch { /* ignore */ }
+    throw err;
+  }
 }
 
 export async function loadSession(cwd: string, sessionId: string): Promise<Session | null> {
@@ -194,6 +206,7 @@ export async function loadSession(cwd: string, sessionId: string): Promise<Sessi
   let title: string | undefined;
   const entryLines: string[] = [];
 
+  let skippedLines = 0;
   for (const line of lines) {
     try {
       const parsed = JSON.parse(line);
@@ -203,14 +216,28 @@ export async function loadSession(cwd: string, sessionId: string): Promise<Sessi
         entryLines.push(line);
       }
     } catch {
-      // skip malformed lines
+      skippedLines++;
     }
+  }
+
+  if (skippedLines > 0) {
+    process.stderr.write(`Warning: skipped ${skippedLines} malformed line(s) in session ${sessionId}\n`);
   }
 
   const entries: SessionEntry[] = entryLines
     .map((line) => {
       try {
-        return JSON.parse(line);
+        const parsed = JSON.parse(line);
+        // Validate required SessionEntry fields
+        if (
+          typeof parsed.id !== 'string' ||
+          typeof parsed.timestamp !== 'number' ||
+          !parsed.message ||
+          typeof parsed.message.role !== 'string'
+        ) {
+          return null;
+        }
+        return parsed as SessionEntry;
       } catch {
         return null;
       }

@@ -150,7 +150,12 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     return { role: 'user', content: results };
   }
 
-  /** Rough token estimate: ~4 chars per token for English text. */
+  /**
+   * Conservative token estimate.
+   * Uses ~3.2 chars/token for code/JSON (which is common in tool results)
+   * and ~4 chars/token for prose. This errs on the side of overestimating
+   * to prevent context window overflow.
+   */
   function estimateTokens(messages: Message[]): number {
     let chars = 0;
     for (const msg of messages) {
@@ -159,7 +164,11 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
       } else {
         for (const block of msg.content) {
           if (block.type === 'text') chars += block.text.length;
-          else if (block.type === 'tool_result') chars += (typeof block.content === 'string' ? block.content.length : 200);
+          else if (block.type === 'tool_result') {
+            // Tool results often contain code/JSON - use more conservative ratio
+            const len = typeof block.content === 'string' ? block.content.length : 200;
+            chars += Math.ceil(len * 1.25); // inflate to account for ~3.2 chars/token
+          }
           else if (block.type === 'tool_use') chars += JSON.stringify(block.input).length + 50;
           else if (block.type === 'thinking') chars += block.text.length;
         }

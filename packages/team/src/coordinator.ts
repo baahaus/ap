@@ -205,12 +205,18 @@ export async function reviewPeer(
   // Get the diff from the target's worktree
   let diff = '';
   try {
-    const { execSync } = await import('node:child_process');
-    diff = execSync('git diff HEAD~1 --stat && echo "---" && git diff HEAD~1', {
+    const { execFileSync } = await import('node:child_process');
+    const stat = execFileSync('git', ['diff', 'HEAD~1', '--stat'], {
       cwd: target.worktree.path,
       encoding: 'utf-8',
       timeout: 10_000,
     });
+    const full = execFileSync('git', ['diff', 'HEAD~1'], {
+      cwd: target.worktree.path,
+      encoding: 'utf-8',
+      timeout: 10_000,
+    });
+    diff = `${stat}\n---\n${full}`;
   } catch {
     diff = '(no diff available)';
   }

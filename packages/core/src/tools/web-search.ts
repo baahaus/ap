@@ -105,6 +105,9 @@ async function searchWithSerpapi(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    // NOTE: SerpAPI requires the API key as a query parameter (their API design).
+    // This means the key appears in URL and may be logged by proxies/intermediaries.
+    // Prefer Brave Search or Tavily which use headers/body for authentication.
     const url = new URL('https://serpapi.com/search.json');
     url.searchParams.set('engine', 'google');
     url.searchParams.set('q', query);

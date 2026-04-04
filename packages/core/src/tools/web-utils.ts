@@ -336,7 +336,7 @@ async function fetchWithCurl(
 
   const { stdout } = await execFileAsync('curl', args, {
     encoding: 'utf8',
-    maxBuffer: 4 * 1024 * 1024,
+    maxBuffer: 5 * 1024 * 1024,
   });
 
   const sentinelIndex = stdout.lastIndexOf(CURL_META_SENTINEL);
@@ -381,13 +381,31 @@ export async function fetchTextWithFallback(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Cap response body to 5MB to prevent memory exhaustion from huge responses
+  const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+
   try {
     const response = await fetch(url, {
       headers,
       redirect: 'follow',
       signal: controller.signal,
     });
-    const text = await response.text();
+
+    // Check Content-Length header before reading body
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && Number(contentLength) > MAX_RESPONSE_BYTES) {
+      return {
+        ok: false,
+        status: response.status,
+        url: response.url || url,
+        contentType: response.headers.get('content-type') || 'application/octet-stream',
+        text: `Error: Response too large (${contentLength} bytes, max ${MAX_RESPONSE_BYTES})`,
+        headers: Object.fromEntries(response.headers.entries()),
+        via: 'fetch',
+      };
+    }
+
+    const text = (await response.text()).slice(0, MAX_RESPONSE_BYTES);
     const result: FetchTextResponse = {
       ok: response.ok,
       status: response.status,

@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import type { Session } from './session.js';
 
 /**
@@ -68,7 +68,7 @@ export function createCheckpoint(
       // Create a temporary commit on a detached state isn't ideal,
       // so we use stash with a unique message
       try {
-        execSync(`git stash push -m "${tagName}" --include-untracked`, {
+        execFileSync('git', ['stash', 'push', '-m', tagName, '--include-untracked'], {
           cwd,
           stdio: 'pipe',
         });
@@ -127,7 +127,7 @@ export function rewindToCheckpoint(
         // For now, just rewind the conversation.
       } else {
         // Reset to the commit
-        execSync(`git checkout ${cp.gitRef} -- .`, { cwd, stdio: 'pipe' });
+        execFileSync('git', ['checkout', cp.gitRef, '--', '.'], { cwd, stdio: 'pipe' });
       }
     } catch {
       // Git rewind failed, but conversation rewind still works

@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { readFileSync, existsSync, chmodSync } from 'node:fs';
+import { mkdir, writeFile, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -48,10 +48,21 @@ export function loadConfig(): BlushConfig {
     const env = readFileSync(envPath, 'utf-8');
     const config: BlushConfig = {};
     for (const line of env.split('\n')) {
-      const [key, ...rest] = line.split('=');
-      const val = rest.join('=').trim().replace(/^["']|["']$/g, '');
-      if (key?.trim() === 'ANTHROPIC_API_KEY') config.anthropic_api_key = val;
-      if (key?.trim() === 'OPENAI_API_KEY') config.openai_api_key = val;
+      const trimmed = line.trim();
+      // Skip empty lines and comments
+      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
+      // Skip lines without = (not key-value pairs)
+      const eqIndex = trimmed.indexOf('=');
+      if (eqIndex <= 0) continue;
+
+      const key = trimmed.slice(0, eqIndex).trim();
+      let val = trimmed.slice(eqIndex + 1).trim();
+      // Strip matching surrounding quotes (single or double)
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (key === 'ANTHROPIC_API_KEY') config.anthropic_api_key = val;
+      if (key === 'OPENAI_API_KEY') config.openai_api_key = val;
     }
     cached = config;
     return config;
@@ -75,8 +86,11 @@ export function getApiKey(provider: 'anthropic' | 'openai'): string | undefined 
 }
 
 export async function saveConfig(config: BlushConfig): Promise<void> {
-  await mkdir(join(homedir(), '.blush'), { recursive: true });
-  await writeFile(BLUSH_CONFIG_PATH, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  const dir = join(homedir(), '.blush');
+  await mkdir(dir, { recursive: true });
+  // Restrict directory to owner-only (contains API keys)
+  await chmod(dir, 0o700);
+  await writeFile(BLUSH_CONFIG_PATH, JSON.stringify(config, null, 2) + '\n', { encoding: 'utf-8', mode: 0o600 });
   cached = config;
 }
 
