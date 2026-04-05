@@ -297,7 +297,7 @@ export function renderGoodbye(sessionId?: string, stats?: {
 }
 
 // ─────────────────────────────────────────
-// Tool execution (progressive reveal)
+// Tool execution (tool timeline)
 // ─────────────────────────────────────────
 
 const toolGlyphs: Record<string, string> = {
@@ -321,6 +321,10 @@ interface ToolActivity {
 const MAX_VISIBLE_TOOL_ACTIVITY = 6;
 const toolTimers = new Map<string, number[]>();
 const toolActivity: ToolActivity[] = [];
+
+// Tracks whether a no-newline start line was written in non-layout mode
+// so the end/error handler knows to erase and overwrite it.
+let nonLayoutToolInProgress = false;
 
 function startToolTimer(name: string): void {
   const timers = toolTimers.get(name) || [];
@@ -375,83 +379,104 @@ function renderToolActivityFooter(): void {
 export function clearToolActivity(): void {
   toolActivity.length = 0;
   toolTimers.clear();
+  nonLayoutToolInProgress = false;
   if (isLayoutActive()) {
     clearFooterLines();
     renderLayout();
   }
 }
 
+/** Build the elapsed-time label. Silent <200ms, subtle 200ms-2s, prominent 2s+. */
+function elapsedLabel(elapsed: number, theme: ReturnType<typeof getTheme>): string {
+  if (elapsed >= 2000) return `  ${chalk.hex(theme.warning)(`${(elapsed / 1000).toFixed(1)}s`)}`;
+  if (elapsed >= 200) return `  ${chalk.hex(theme.muted)(`${(elapsed / 1000).toFixed(1)}s`)}`;
+  return '';
+}
+
+/** Compact output summary with fold hint for long results. */
+function outputSummary(name: string, result: string): string {
+  const lines = result.split('\n');
+  const lineCount = lines.length;
+
+  if (name === 'edit' && result.toLowerCase().includes('applied')) return 'applied';
+  if (lineCount === 1) return result.slice(0, 50).trim() || 'done';
+
+  // Fold hint: short outputs just count lines, long outputs signal they are collapsed
+  const countLabel = lineCount > 20
+    ? `${sym.ellipsis} ${lineCount} lines`
+    : `${lineCount} lines`;
+  return countLabel;
+}
+
 export function renderToolStart(name: string, detail?: string): void {
   const theme = getTheme();
-  const glyph = toolGlyphs[name] || sym.toolRun;
+  // Running state: calm — dim dot, muted name and detail
+  const line = `  ${chalk.hex(theme.dim)(sym.dot)} ${chalk.hex(theme.dim)(name)}  ${chalk.hex(theme.muted)(detail || '')}`;
   startToolTimer(name);
-  const line = `  ${chalk.hex(theme.muted)(glyph)} ${chalk.hex(theme.dim)(name)}  ${chalk.hex(theme.muted)(detail || '')}`;
   if (isLayoutActive()) {
     upsertToolActivity({ name, status: 'running', line });
     renderToolActivityFooter();
     return;
   }
-  renderLine(line);
+  // Non-layout: write without newline so the end handler can overwrite in place
+  process.stdout.write(line);
+  nonLayoutToolInProgress = true;
 }
 
 export function renderToolEnd(name: string, result: string): void {
   const theme = getTheme();
-
-  // Elapsed time -- progressive: silent under 200ms, subtle 200ms-2s, prominent 2s+
   const elapsed = finishToolTimer(name);
-  const timeLabel = elapsed >= 2000
-    ? `  ${chalk.hex(theme.warning)(`${(elapsed / 1000).toFixed(1)}s`)}`
-    : elapsed >= 200
-      ? `  ${chalk.hex(theme.muted)(`${(elapsed / 1000).toFixed(1)}s`)}`
-      : '';
+  const glyph = toolGlyphs[name] || sym.toolRun;
+  const summary = outputSummary(name, result);
+  const time = elapsedLabel(elapsed, theme);
 
-  // Compute a compact summary
-  const lineCount = result.split('\n').length;
-  let summary: string;
-
-  if (name === 'edit' && result.toLowerCase().includes('applied')) {
-    summary = 'applied';
-  } else if (lineCount > 1) {
-    summary = `${lineCount} lines`;
-  } else {
-    summary = result.slice(0, 50).trim() || 'done';
-  }
-
-  // End is confident -- bold name, accent checkmark, visible summary
-  const line = `  ${chalk.hex(theme.accent)(sym.toolDone)} ${chalk.hex(theme.text).bold(name)}  ${chalk.hex(theme.dim)(summary)}${timeLabel}`;
+  // Done: accent glyph, normal-weight name, dim summary, time
+  const line = `  ${chalk.hex(theme.accent)(glyph)} ${chalk.hex(theme.text)(name)}  ${chalk.hex(theme.dim)(summary)}${time}`;
   if (isLayoutActive()) {
     upsertToolActivity({ name, status: 'done', line });
     renderToolActivityFooter();
     return;
   }
-  renderLine(line);
+  // Erase the pending start line (if any) and emit the final one-liner
+  if (nonLayoutToolInProgress) {
+    process.stdout.write(`\r\x1b[2K${line}\n`);
+    nonLayoutToolInProgress = false;
+  } else {
+    process.stdout.write(`${line}\n`);
+  }
 }
 
 export function renderToolError(name: string, error: string): void {
   const theme = getTheme();
   finishToolTimer(name);
-  const line = `  ${chalk.hex(theme.error)(sym.toolFail)} ${chalk.hex(theme.text).bold(name)}  ${chalk.hex(theme.error)(error)}`;
+  const line = `  ${chalk.hex(theme.error)(sym.toolFail)} ${chalk.hex(theme.text)(name)}  ${chalk.hex(theme.error)(error.slice(0, 60))}`;
   if (isLayoutActive()) {
     upsertToolActivity({ name, status: 'error', line });
     renderToolActivityFooter();
     return;
   }
-  renderLine(line);
+  if (nonLayoutToolInProgress) {
+    process.stdout.write(`\r\x1b[2K${line}\n`);
+    nonLayoutToolInProgress = false;
+  } else {
+    process.stdout.write(`${line}\n`);
+  }
 }
 
 /**
- * Render a tool result in progressive-reveal style.
- * Shows compact summary by default. Full output available if expanded.
+ * Render expanded tool output below the one-liner (verbose mode).
+ * By default tools are collapsed to a single summary line.
+ * Pass expanded=true to show a preview with left-border decoration.
  */
 export function renderToolResult(name: string, result: string, expanded = false): void {
   const theme = getTheme();
   const lines = result.split('\n');
 
   if (!expanded || lines.length <= 3) {
-    return; // Default: collapsed, summary already shown by renderToolEnd
+    return; // Default: collapsed — summary already in renderToolEnd
   }
 
-  // Expanded view: show content with left border
+  // Expanded: show up to 12 lines with left-border, then fold indicator
   const preview = lines.slice(0, 12);
   for (const line of preview) {
     renderLine(`    ${chalk.hex(theme.border)(sym.boxV)} ${chalk.hex(theme.dim)(line)}`);
