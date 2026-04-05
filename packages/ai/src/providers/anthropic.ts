@@ -144,7 +144,7 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
     if (request.temperature !== undefined && !useThinking) body.temperature = request.temperature;
     if (request.stopSequences?.length) body.stop_sequences = request.stopSequences;
 
-    const response = await fetchWithRetry(`${baseUrl}/v1/messages${urlSuffix}`, {
+    const reqInit: RequestInit = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -152,7 +152,25 @@ export function createAnthropicProvider(config: ProviderConfig): Provider {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(body),
-    });
+    };
+    const url = `${baseUrl}/v1/messages${urlSuffix}`;
+
+    // Inline retry loop so we can yield retry events before sleeping.
+    const maxRetries = 2;
+    let response!: Response;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      response = await fetch(url, reqInit);
+      if (response.status !== 429 || attempt === maxRetries) break;
+      const retryAfter = response.headers.get('retry-after');
+      const waitMs = getAnthropicRetryDelayMs(retryAfter, attempt);
+      if (waitMs === null) {
+        yield { type: 'retry', retryFinal: true };
+        break;
+      }
+      const waitSeconds = Math.round(waitMs / 1000);
+      yield { type: 'retry', waitSeconds };
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
 
     if (!response.ok) {
       const raw = await response.text();

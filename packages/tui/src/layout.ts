@@ -252,10 +252,10 @@ export function clearFooterLines(): void {
 
 export function commitInputToTranscript(line: string): void {
   if (!state.active) return;
+  const theme = getTheme();
   const inputLines = line.split('\n');
-  const padWidth = visibleWidth(state.prompt);
-  const pad = ' '.repeat(padWidth);
-  const formatted = inputLines.map((l, i) => (i === 0 ? state.prompt : pad) + l).join('\n');
+  const continuationMark = chalk.hex(theme.border)(sym.boxV) + ' ';
+  const formatted = inputLines.map((l, i) => (i === 0 ? state.prompt : continuationMark) + l).join('\n');
   appendTranscript(`\n${formatted}\n`);
 }
 
@@ -330,13 +330,13 @@ export function renderLayout(): void {
   process.stdout.write(dividerLine);
   process.stdout.write('\n');
 
-  // Render the (possibly multiline) input with prompt/continuation padding
+  // Render the (possibly multiline) input with prompt/continuation marker
   const inputLines = state.inputLine.split('\n');
-  const padWidth = promptVisibleWidth();
-  const pad = ' '.repeat(padWidth);
+  const theme = getTheme();
+  const continuationMark = chalk.hex(theme.border)(sym.boxV) + ' ';
   for (let i = 0; i < inputLines.length; i++) {
     if (i > 0) process.stdout.write('\n');
-    process.stdout.write((i === 0 ? state.prompt : pad) + inputLines[i]);
+    process.stdout.write((i === 0 ? state.prompt : continuationMark) + inputLines[i]);
   }
 
   if (composerExtra.length > 0) {

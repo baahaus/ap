@@ -8,6 +8,7 @@ export {
   renderToolResult,
   clearToolActivity,
   renderError,
+  renderRetry,
   renderSuccess,
   renderWarning,
   renderDim,

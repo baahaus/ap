@@ -52,7 +52,7 @@ export interface ToolDefinition {
 // --- Provider ---
 
 export interface StreamEvent {
-  type: 'text' | 'tool_use_start' | 'tool_use_delta' | 'tool_use_end' | 'thinking' | 'done' | 'error' | 'usage';
+  type: 'text' | 'tool_use_start' | 'tool_use_delta' | 'tool_use_end' | 'thinking' | 'done' | 'error' | 'usage' | 'retry';
   text?: string;
   toolUse?: {
     id: string;
@@ -62,6 +62,10 @@ export interface StreamEvent {
   };
   error?: string;
   usage?: TokenUsage;
+  /** Seconds to wait before retry. Only present on type='retry'. */
+  waitSeconds?: number;
+  /** True if the retry-after exceeds the interactive cap and no retry will occur. */
+  retryFinal?: boolean;
 }
 
 export interface CompletionRequest {

@@ -533,12 +533,33 @@ export function renderMarkdown(text: string): string {
 // Status & info rendering
 // ─────────────────────────────────────────
 
+/**
+ * Action-hint lines from error messages (e.g. "  Run: blush init").
+ * These are rendered distinctly to guide the user toward a fix.
+ */
+const ACTION_HINT_RE = /^\s+(Run:|Set |Add |Visit |Go to |Try )/;
+
 export function renderError(error: string): void {
   const theme = getTheme();
   const lines = error.split('\n');
   renderLine(`  ${chalk.hex(theme.error).bold(sym.toolFail)} ${chalk.hex(theme.error).bold('error')}  ${chalk.hex(theme.text)(lines[0])}`);
   for (let i = 1; i < lines.length; i++) {
-    renderLine(`           ${chalk.hex(theme.dim)(lines[i])}`);
+    const line = lines[i];
+    if (ACTION_HINT_RE.test(line)) {
+      renderLine(`           ${chalk.hex(theme.accent)(sym.arrow)} ${chalk.hex(theme.dim)(line.trim())}`);
+    } else {
+      renderLine(`           ${chalk.hex(theme.dim)(line)}`);
+    }
+  }
+}
+
+/** Rate limit retry feedback — shown inline while blush waits before re-sending. */
+export function renderRetry(waitSeconds: number, isFinal?: boolean): void {
+  const theme = getTheme();
+  if (isFinal) {
+    renderLine(`  ${chalk.hex(theme.warning).bold('!')} ${chalk.hex(theme.warning)('rate limited')}  ${chalk.hex(theme.dim)('retry-after exceeds limit — wait, then try again or switch model with /model')}`);
+  } else {
+    renderLine(`  ${chalk.hex(theme.warning)(sym.ellipsis)} ${chalk.hex(theme.warning)('rate limited')}  ${chalk.hex(theme.dim)(`retrying in ${waitSeconds}s${sym.ellipsis}`)}`);
   }
 }
 

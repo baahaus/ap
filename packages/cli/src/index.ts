@@ -27,6 +27,7 @@ import {
   renderToolEnd,
   clearToolActivity,
   renderError,
+  renderRetry,
   renderDim,
   renderTurnSeparator,
   renderWelcome,
@@ -655,6 +656,11 @@ export async function run(): Promise<void> {
             clearToolActivity();
             beginResponse();
             renderError(event.error || 'Unknown error');
+            break;
+          case 'retry':
+            spinner.stop();
+            renderRetry(event.waitSeconds ?? 0, event.retryFinal);
+            if (!event.retryFinal) spinner.start('thinking');
             break;
         }
       },

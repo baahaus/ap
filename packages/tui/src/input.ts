@@ -276,6 +276,22 @@ function composerLabel(line: string, completion: CompletionSession | null): stri
   return 'ready';
 }
 
+/** Move cursor to the start of the previous word (emacs Alt+B / Ctrl+Left). */
+function wordBoundaryLeft(text: string, pos: number): number {
+  let i = pos;
+  while (i > 0 && /\s/.test(text[i - 1]!)) i--;
+  while (i > 0 && !/\s/.test(text[i - 1]!)) i--;
+  return i;
+}
+
+/** Move cursor to the end of the next word (emacs Alt+F / Ctrl+Right). */
+function wordBoundaryRight(text: string, pos: number): number {
+  let i = pos;
+  while (i < text.length && /\s/.test(text[i]!)) i++;
+  while (i < text.length && !/\s/.test(text[i]!)) i++;
+  return i;
+}
+
 export function isCommand(input: string): boolean {
   return input.startsWith('/');
 }
@@ -339,11 +355,10 @@ export function createInput(options: InputOptions = {}): InputHandle {
     }
 
     const inputLines = line.split('\n');
+    const continuationMark = chalk.hex(getTheme().border)(sym.boxV) + ' ';
     process.stdout.write('\r\x1b[K' + prompt + inputLines[0]);
     for (let i = 1; i < inputLines.length; i++) {
-      // Continuation lines: pad to align with first line's text (after prompt)
-      const pad = ' '.repeat(Math.max(0, prompt.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '').length));
-      process.stdout.write(`\n${pad}${inputLines[i]}`);
+      process.stdout.write(`\n${continuationMark}${inputLines[i]}`);
     }
     for (const barLine of barLines) {
       process.stdout.write(`\n${barLine}`);
@@ -485,6 +500,91 @@ export function createInput(options: InputOptions = {}): InputHandle {
 
     if (key.ctrl && key.name === 'c') {
       handleCtrlC();
+      return;
+    }
+
+    // Ctrl+D — delete forward, or exit on empty line (standard readline)
+    if (key.ctrl && key.name === 'd') {
+      if (line.length === 0) {
+        handleCtrlC();
+        return;
+      }
+      deleteForward();
+      render();
+      return;
+    }
+
+    // Ctrl+A — beginning of current line (emacs)
+    if (key.ctrl && key.name === 'a') {
+      const { row } = cursorToRowCol(line, cursor);
+      cursor = lineStartIndex(line, row);
+      resetCompletion();
+      render();
+      return;
+    }
+
+    // Ctrl+E — end of current line (emacs)
+    if (key.ctrl && key.name === 'e') {
+      const { row } = cursorToRowCol(line, cursor);
+      cursor = lineStartIndex(line, row) + lineLength(line, row);
+      resetCompletion();
+      render();
+      return;
+    }
+
+    // Ctrl+K — kill to end of current line (emacs)
+    if (key.ctrl && key.name === 'k') {
+      const { row } = cursorToRowCol(line, cursor);
+      const lineEnd = lineStartIndex(line, row) + lineLength(line, row);
+      line = line.slice(0, cursor) + line.slice(lineEnd);
+      resetCompletion();
+      render();
+      return;
+    }
+
+    // Ctrl+U — kill to beginning of current line (emacs)
+    if (key.ctrl && key.name === 'u') {
+      const { row } = cursorToRowCol(line, cursor);
+      const lineStart = lineStartIndex(line, row);
+      line = line.slice(0, lineStart) + line.slice(cursor);
+      cursor = lineStart;
+      resetCompletion();
+      render();
+      return;
+    }
+
+    // Ctrl+W / Alt+Backspace — delete word backward (emacs / bash)
+    if ((key.ctrl && key.name === 'w') || (key.meta && key.name === 'backspace')) {
+      const newPos = wordBoundaryLeft(line, cursor);
+      line = line.slice(0, newPos) + line.slice(cursor);
+      cursor = newPos;
+      resetCompletion();
+      render();
+      return;
+    }
+
+    // Alt+D — delete word forward (emacs)
+    if (key.meta && key.name === 'd') {
+      const newEnd = wordBoundaryRight(line, cursor);
+      line = line.slice(0, cursor) + line.slice(newEnd);
+      resetCompletion();
+      render();
+      return;
+    }
+
+    // Alt+B / Ctrl+Left — move word backward (emacs)
+    if ((key.meta && key.name === 'b') || (key.ctrl && key.name === 'left')) {
+      cursor = wordBoundaryLeft(line, cursor);
+      resetCompletion();
+      render();
+      return;
+    }
+
+    // Alt+F / Ctrl+Right — move word forward (emacs)
+    if ((key.meta && key.name === 'f') || (key.ctrl && key.name === 'right')) {
+      cursor = wordBoundaryRight(line, cursor);
+      resetCompletion();
+      render();
       return;
     }
 
